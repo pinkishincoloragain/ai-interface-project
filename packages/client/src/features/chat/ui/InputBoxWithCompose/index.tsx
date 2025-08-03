@@ -6,7 +6,7 @@ interface InputBoxProps {
 }
 
 const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) => {
-    const [isComposing, setIsComposing] = useState(false);
+    const isComposingRef = useRef(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
@@ -25,7 +25,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) 
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         // IME 입력 중이 아닐 때만 Enter 키 처리
-        if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
+        if (e.key === 'Enter' && !e.shiftKey && !isComposingRef.current) {
             e.preventDefault();
             handleSubmit();
         }
@@ -53,8 +53,12 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) 
                 rows={1}
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
-                onCompositionStart={() => setIsComposing(true)}
-                onCompositionEnd={() => setIsComposing(false)}
+                onCompositionStart={() => {
+                    isComposingRef.current = true;
+                }}
+                onCompositionEnd={() => {
+                    isComposingRef.current = false;
+                }}
                 disabled={disabled}
             />
             <button
