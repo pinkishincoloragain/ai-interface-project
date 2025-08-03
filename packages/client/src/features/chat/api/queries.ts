@@ -31,7 +31,7 @@ export const useSendMessageMutation = () => {
         // 즉, 서버가 클라이언트에게 푸시하듯 계속 데이터를 보내주는 방식
         mutationFn: async ({ content, threadId }: SendMessageParams) => {
             setLoading(true);
-
+            // 메시지는 message queue에 쌓이게되고 role이 user이면 우측에 / assistant이면 좌측에 렌더링된다
             // Create user message
             const userMessage: ChatMessage = {
                 id: uuidv4(),
@@ -61,7 +61,7 @@ export const useSendMessageMutation = () => {
                     role: 'assistant',
                     content: '',
                     createdAt: new Date().toISOString(),
-                    status: 'sending',
+                    status: 'sending', // 빈 말 풍선이 생기고 onEvent 콜백을 통해 실시간으로 텍스트가 채워짐
                 };
                 addMessage(assistantPlaceholder);
 
