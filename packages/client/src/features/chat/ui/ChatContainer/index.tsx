@@ -23,7 +23,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ threadId, onThreadCreated
                 <MessageList messages={messages} />
             </div>
             <div className="border-t border-gray-700 p-4 flex-shrink-0">
-                <InputBoxWithCompose onSendMessage={onSendMessage} disabled={loading} />
+                <InputBoxWithCompose onSendMessage={onSendMessage} disabled={loading} threadId={threadId} />
             </div>
         </div>
     );

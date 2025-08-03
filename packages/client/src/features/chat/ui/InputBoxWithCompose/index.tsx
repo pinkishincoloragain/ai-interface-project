@@ -3,9 +3,10 @@ import React, { useEffect, useRef } from 'react';
 interface InputBoxProps {
     onSendMessage: (message: string) => void;
     disabled?: boolean;
+    threadId?: string;
 }
 
-const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) => {
+const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false, threadId }) => {
     const isComposingRef = useRef(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -14,6 +15,14 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) 
             textareaRef.current.focus();
         }
     }, []);
+
+    // threadId가 변경되면 입력 내용 초기화
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.value = '';
+            textareaRef.current.style.height = 'auto';
+        }
+    }, [threadId]);
 
     const handleChange = (_e: React.ChangeEvent<HTMLTextAreaElement>) => {
         // 자동 높이 조절
