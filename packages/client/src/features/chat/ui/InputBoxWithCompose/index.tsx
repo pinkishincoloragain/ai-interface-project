@@ -6,7 +6,6 @@ interface InputBoxProps {
 }
 
 const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) => {
-    const [message, setMessage] = useState('');
     const [isComposing, setIsComposing] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -16,9 +15,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) 
         }
     }, []);
 
-    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        setMessage(e.target.value);
-
+    const handleChange = (_e: React.ChangeEvent<HTMLTextAreaElement>) => {
         // 자동 높이 조절
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
@@ -35,15 +32,15 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) 
     };
 
     const handleSubmit = () => {
-        const trimmedMessage = message.trim();
+        if (!textareaRef.current) return;
+
+        const trimmedMessage = textareaRef.current.value.trim();
         if (trimmedMessage) {
             onSendMessage(trimmedMessage);
-            setMessage('');
+            textareaRef.current.value = ''; // 직접 DOM 값 초기화
 
             // 제출 후 높이 초기화
-            if (textareaRef.current) {
-                textareaRef.current.style.height = 'auto';
-            }
+            textareaRef.current.style.height = 'auto';
         }
     };
 
@@ -54,7 +51,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) 
                 className="flex-1 resize-none border border-gray-600 bg-gray-700 text-white rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed placeholder-gray-400"
                 placeholder="메시지를 입력하세요..."
                 rows={1}
-                value={message}
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
                 onCompositionStart={() => setIsComposing(true)}
@@ -64,7 +60,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) 
             <button
                 className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 onClick={handleSubmit}
-                disabled={!message.trim() || disabled}
+                disabled={disabled}
             >
                 전송
             </button>
