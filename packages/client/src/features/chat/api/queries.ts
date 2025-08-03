@@ -11,6 +11,11 @@ export interface SendMessageParams {
     threadId?: string;
 }
 
+// 메시지를 서버로 보내는 역할
+// 1. 메시지 입력 처리 > 유저가 메시지를 보내면 곧바로 화면에 반영
+// 2. SSE 스트리밍 처리 > 서버에서 실시간으로 응답을 보내주면 처리
+// 3. 상태 업데이트 loading > sending > success/error
+// 4. 캐싱/ 무효화 처리 > 전송 성공시 쿼리를 자동 새로 고침
 export const useSendMessageMutation = () => {
     const queryClient = useQueryClient();
     const addMessage = useChatStore((state) => state.addMessage);
@@ -21,6 +26,9 @@ export const useSendMessageMutation = () => {
     const currentThreadId = useChatStore((state) => state.currentThreadId);
 
     return useMutation({
+        // mutationFn : 서버로 요청을 보내는 함수 > 메시지 전송 및 SSE처리
+        // SSE(Streaming Server-Sent Events) : 클라이언트(브라우저)가 서버로부터 실시간으로 데이터를 받아올 수 있게 하는 HTTP 기반의 단방향 통신 기술
+        // 즉, 서버가 클라이언트에게 푸시하듯 계속 데이터를 보내주는 방식
         mutationFn: async ({ content, threadId }: SendMessageParams) => {
             setLoading(true);
 
@@ -30,10 +38,11 @@ export const useSendMessageMutation = () => {
                 role: 'user',
                 content,
                 createdAt: new Date().toISOString(),
-                status: 'success',
+                status: 'success', // 화면에 바로 출력되기 위함
             };
 
             addMessage(userMessage);
+            // 유저가 메시지를 입력하면 messages 배열에 추가되고 바로 UI에 렌더링됨(status가 success이므로) => 낙관적 UI 업데이트(optimistic UI)
 
             try {
                 // Get current messages for the request
@@ -45,7 +54,7 @@ export const useSendMessageMutation = () => {
                 // Send request
                 const response = await chatApi.sendMessage(currentMessages, threadId || currentThreadId);
 
-                // Create placeholder assistant message
+                // Create placeholder assistant message > ai가 답변중인 메시지를 화면에 띄움. 처음에는 빈칸이나 점점 글자 채움
                 const assistantPlaceholderId = uuidv4();
                 const assistantPlaceholder: ChatMessage = {
                     id: assistantPlaceholderId,
@@ -65,6 +74,7 @@ export const useSendMessageMutation = () => {
                 // 3. 메시지 중복 방지: 재전송 시 중복 메시지 처리
                 // 4. 실시간 타이핑 인디케이터: 더 정교한 사용자 피드백
 
+                // 이벤트 실시간 처리
                 const streamingHandler = createStreamingHandler({
                     messageId: assistantPlaceholderId,
                     currentThreadId: threadId || currentThreadId,
@@ -150,6 +160,7 @@ export const useSendMessageMutation = () => {
             }
         },
         onSuccess: (responseThreadId) => {
+            // 메시지 전송이 성공했을 때, 해당 스레드와 리스트 데이터를 강제로 새로 받아오게 함.
             // Invalidate thread queries when a message is sent
             queryClient.invalidateQueries({ queryKey: QUERY_KEYS.threads.list() });
 
