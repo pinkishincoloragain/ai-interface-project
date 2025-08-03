@@ -74,6 +74,99 @@ onSuccess: (responseThreadId) => {
 
 ### 1-2. SSEStreamingHandler 생명주기
 
+1. 인스턴스 생성
+
+```
+   const handler = createStreamingHandler(options);
+```
+
+- StreamingHandlerOptions를 인자로 받아 내부 상태 설정
+- onEvent, onError, onComplete 콜백 등 주입
+- 내부 변수 초기화: reader, decoder, buffer, timeoutId 등
+
+2. 스트림 시작
+
+```
+   await handler.handleStream(response);
+```
+
+- response.body가 없으면 에러 throw
+- ReadableStream.getReader()로 스트림 reader 생성
+- setupTimeout()으로 타임아웃 타이머 시작
+- processStreamChunks() 호출하여 본격적인 데이터 읽기 시작
+
+3. 청크 단위 데이터 처리
+
+```
+      const { done, value } = await reader.read();
+```
+
+- TextDecoder로 수신된 청크(바이트)를 문자열로 변환
+- \n 기준으로 라인 단위로 나눠 처리
+- 라인이 data: 로 시작하면 JSON 파싱 시도
+- 파싱 성공 시 onEvent({ type: 'message', ... }) 콜백 실행
+- 파싱 실패 시 null 반환 및 경고 로그 출력
+
+4. 완료 처리 - [DONE] 수신 시
+
+```
+return { type: 'done' };
+```
+
+→ handleComplete() 호출
+→ 내부 리소스 정리 후 onComplete(threadId) 콜백 실행
+→ resolve(threadId)
+
+5. 에러 처리
+
+- "event: error" 수신 시:
+
+```
+return { type: 'error', data: 'SSE Error occurred' };
+```
+
+- JSON 파싱 실패, 네트워크 에러 등 발생 시:
+
+```
+this.handleError(reject, error);
+```
+
+→ onError(error) 콜백 실행
+→ reject(error)
+
+6. 타임아웃 처리
+
+- 지정된 시간 안에 isComplete가 되지 않으면:
+
+```
+onEvent({ type: 'timeout', messageId });
+reject(new Error('SSE timeout'));
+```
+
+타이머는 setTimeout()으로 관리되며, cleanup()에서 정리됨
+
+7. 리소스 정리 (cleanup)
+
+```
+   clearTimeout(this.timeoutId);
+   this.reader?.releaseLock();
+   this.reader = null;
+   this.buffer = '';
+```
+
+- 타이머 해제
+- reader release
+- 버퍼 초기화
+
+8. 수동 중단
+
+```
+handler.cancel();
+```
+
+- isComplete = true로 설정
+- 내부 리소스 정리만 수행 (콜백은 호출되지 않음)
+
 ### 1-3. Zustand store 상태 변화
 
 ## 2. 데이터 구조 분석
