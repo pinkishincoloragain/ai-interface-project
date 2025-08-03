@@ -74,7 +74,12 @@ export const useSendMessageMutation = () => {
                 // 3. 메시지 중복 방지: 재전송 시 중복 메시지 처리
                 // 4. 실시간 타이핑 인디케이터: 더 정교한 사용자 피드백
 
-                // 이벤트 실시간 처리
+                // streamingHandler : 이벤트 실시간 처리
+                // placeholder가 생긴 뒤
+                // streamingHandler.handleStream(response)가 실행되고
+                // 응답 조각이 도착할 때마다: updateMessage(assistantMessageId, { content: ... })가 호출되면서
+                // placeholder에 내용이 덧붙여짐
+                // 마지막에 [DONE]이 오면 상태를 'success'로 바꾸고 끝남
                 const streamingHandler = createStreamingHandler({
                     messageId: assistantPlaceholderId,
                     currentThreadId: threadId || currentThreadId,
