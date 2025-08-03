@@ -169,6 +169,15 @@ handler.cancel();
 
 ### 1-3. Zustand store 상태 변화
 
+1. 유저 메시지 추가 → addMessage(userMessage)
+2. 어시스턴트 placeholder 추가 → addMessage(assistantPlaceholder)
+3. SSE 이벤트 수신 시 메시지 갱신
+   → updateMessage(id, { content, status }) 또는 addMessage (id 변경 시)
+4. SSE 완료 시 상태 갱신
+   → updateMessage(id, { status: 'success' })
+5. SSE 에러 또는 타임아웃 시 상태 갱신
+   → updateMessage(id, { status: 'error' })
+
 ## 2. 데이터 구조 분석
 
 ### 2-1. SSEMessageData 인터페이스 필드별 설명
