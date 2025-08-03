@@ -183,6 +183,16 @@ handler.cancel();
 
 ### 2-1. SSEMessageData 인터페이스 필드별 설명
 
+```
+export interface SSEMessageData {
+  id: string; //assistant 메시지의 고유 ID (스트리밍 중간에 변경 가능)
+  content: string; //assistant가 생성 중인 메시지의 청크 내용
+  role: 'assistant'; //메시지 발신자 역할 (고정값 'assistant')
+  conversationId: string; //이 메시지가 속한 대화(conversation)의 ID
+  isDone: boolean; //전체 메시지 생성 완료 여부 (true면 최종 청크)
+}
+```
+
 ### 2-2. StreamingEvent 타입들의 용도와 발생 조건
 
 ### 2-3. ChatMessage 상태(sending, success, error) 전환 조건
