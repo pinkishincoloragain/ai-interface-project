@@ -4,6 +4,17 @@
 
 ### 1-1. useSendMessageMutation 실행 과정
 
+[요약]
+
+1. 유저 메시지 생성 → message queue에 추가
+2. 이전 메시지들과 함께 API 호출(currentMessage 참고)
+3. assistant placeholder 생성 → message queue에 추가
+4. SSE 스트리밍 시작
+5. onEvent → 메시지 내용 채워나감
+6. onComplete → 스트리밍 완료 처리
+7. onError → 실패 처리
+8. queryClient.invalidateQueries → 캐시 정리
+
 ### 1-2. SSEStreamingHandler 생명주기
 
 ### 1-3. Zustand store 상태 변화

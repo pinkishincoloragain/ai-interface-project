@@ -46,6 +46,8 @@ export const useSendMessageMutation = () => {
 
             try {
                 // Get current messages for the request
+                // message에 쌓인 성공인 메시지와 유저가 갓 보낸 메시지를 모두 전송
+                // 이전 대화의 문맥이 있어야 제대로 응답할 수 있기때문
                 const currentMessages = [
                     ...useChatStore.getState().messages.filter((m) => m.status === 'success'),
                     userMessage,
