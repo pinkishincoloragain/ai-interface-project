@@ -169,14 +169,15 @@ handler.cancel();
 
 ### 1-3. Zustand store 상태 변화
 
-1. 유저 메시지 추가 → addMessage(userMessage)
-2. 어시스턴트 placeholder 추가 → addMessage(assistantPlaceholder)
-3. SSE 이벤트 수신 시 메시지 갱신
-   → updateMessage(id, { content, status }) 또는 addMessage (id 변경 시)
-4. SSE 완료 시 상태 갱신
-   → updateMessage(id, { status: 'success' })
-5. SSE 에러 또는 타임아웃 시 상태 갱신
-   → updateMessage(id, { status: 'error' })
+| 함수명                              | 변경 대상 상태    | 설명                                                                                                     |
+| ----------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------- |
+| `addMessage(message)`               | `messages`        | 새로운 메시지를 배열에 추가함.<br>→ `messages = [...messages, message]`                                  |
+| `setMessages(messages)`             | `messages`        | 전체 메시지를 한 번에 교체함.<br>→ `messages = 전달된 배열`                                              |
+| `updateMessage(messageId, updates)` | `messages`        | 특정 메시지 ID에 해당하는 항목을 찾아서 수정함.<br>→ 내용(content) 또는 상태(status)를 바꿀 때 주로 사용 |
+| `removeMessage(messageId)`          | `messages`        | 특정 ID의 메시지를 삭제함.                                                                               |
+| `setCurrentThreadId(threadId)`      | `currentThreadId` | 현재 사용 중인 스레드 ID를 설정함.                                                                       |
+| `setLoading(loading)`               | `loading`         | 현재 로딩 중인지 여부를 설정함.                                                                          |
+| `clearMessages()`                   | `messages`        | 메시지 배열을 비움.                                                                                      |
 
 ## 2. 데이터 구조 분석
 
