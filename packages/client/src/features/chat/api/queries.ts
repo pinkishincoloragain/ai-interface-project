@@ -83,6 +83,7 @@ export const useSendMessageMutation = () => {
                 // placeholder에 내용이 덧붙여짐
                 // 마지막에 [DONE]이 오면 상태를 'success'로 바꾸고 끝남
                 const streamingHandler = createStreamingHandler({
+                    // 이벤트 처리기 > 콜백들로 구성
                     messageId: assistantPlaceholderId,
                     currentThreadId: threadId || currentThreadId,
                     timeout: 30000,
@@ -158,7 +159,7 @@ export const useSendMessageMutation = () => {
                     },
                 });
 
-                return streamingHandler.handleStream(response);
+                return streamingHandler.handleStream(response); // 이벤트 처리기.실행(응답객체)
             } catch (error) {
                 setLoading(false);
                 // If we have an assistant message placeholder, mark it as error

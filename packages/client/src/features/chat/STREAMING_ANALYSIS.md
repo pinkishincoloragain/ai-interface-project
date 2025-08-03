@@ -4,16 +4,73 @@
 
 ### 1-1. useSendMessageMutation 실행 과정
 
-[요약]
-
 1. 유저 메시지 생성 → message queue에 추가
+
+```
+const userMessage: ChatMessage = { ... };
+addMessage(userMessage);
+```
+
 2. 이전 메시지들과 함께 API 호출(currentMessage 참고)
+
+```
+const currentMessages = [
+  ...useChatStore.getState().messages.filter(m => m.status === 'success'),
+  userMessage,
+];
+const response = await chatApi.sendMessage(currentMessages, threadId || currentThreadId);
+```
+
 3. assistant placeholder 생성 → message queue에 추가
+
+```
+const assistantPlaceholder: ChatMessage = { ... };
+addMessage(assistantPlaceholder);
+```
+
 4. SSE 스트리밍 시작
+
+```
+   const handler = createStreamingHandler(...)
+   handler.handleStream(response)
+```
+
 5. onEvent → 메시지 내용 채워나감
+
+```
+onEvent: (event) => {
+  if (event.type === 'message' && event.data?.content) {
+    updateMessage(assistantMessageId, { content: event.data.content, ... });
+  }
+}
+```
+
 6. onComplete → 스트리밍 완료 처리
+
+```
+onComplete: () => {
+  updateMessage(assistantMessageId, { status: 'success' });
+  setLoading(false);
+}
+```
+
 7. onError → 실패 처리
+
+```
+onError: () => {
+  updateMessage(assistantMessageId, { status: 'error' });
+  setLoading(false);
+}
+```
+
 8. queryClient.invalidateQueries → 캐시 정리
+
+```
+onSuccess: (responseThreadId) => {
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.threads.list() });
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.threads.messages(responseThreadId) });
+}
+```
 
 ### 1-2. SSEStreamingHandler 생명주기
 
