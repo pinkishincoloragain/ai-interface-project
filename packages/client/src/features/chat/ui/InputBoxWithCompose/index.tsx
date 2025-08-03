@@ -16,11 +16,12 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false, th
         }
     }, []);
 
-    // threadId가 변경되면 입력 내용 초기화
+    // threadId가 변경되면 입력 내용 초기화 및 포커스
     useEffect(() => {
         if (textareaRef.current) {
             textareaRef.current.value = '';
             textareaRef.current.style.height = 'auto';
+            textareaRef.current.focus();
         }
     }, [threadId]);
 
