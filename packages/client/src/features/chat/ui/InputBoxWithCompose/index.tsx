@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface InputBoxProps {
     onSendMessage: (message: string) => void;
@@ -32,7 +32,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) 
     };
 
     const handleSubmit = () => {
-        if (!textareaRef.current) return;
+        if (!textareaRef.current || disabled) return;
 
         const trimmedMessage = textareaRef.current.value.trim();
         if (trimmedMessage) {
@@ -59,7 +59,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) 
                 onCompositionEnd={() => {
                     isComposingRef.current = false;
                 }}
-                disabled={disabled}
             />
             <button
                 className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
