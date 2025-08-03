@@ -88,6 +88,8 @@ export const useSendMessageMutation = () => {
                     timeout: 30000,
 
                     // 스트리밍 이벤트 처리
+                    // messageData.content가 오면 updateMessage()
+                    // conversationId가 오면 setCurrentThreadId()
                     onEvent: (event: StreamingEvent) => {
                         if (event.type === 'message' && event.data) {
                             const messageData = event.data as SSEMessageData;
@@ -100,7 +102,9 @@ export const useSendMessageMutation = () => {
                             // 메시지 ID 동기화
                             // TODO: 개선 - 메시지 ID 충돌 처리 로직 강화
                             if (messageData.id && messageData.id !== assistantMessageId) {
+                                // 기존 id 백업
                                 const oldId = assistantMessageId;
+                                // 새로 온 진짜 id로 업데이트
                                 assistantMessageId = messageData.id;
 
                                 if (oldId) {
