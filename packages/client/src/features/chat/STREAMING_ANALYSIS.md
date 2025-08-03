@@ -195,6 +195,21 @@ export interface SSEMessageData {
 
 ### 2-2. StreamingEvent 타입들의 용도와 발생 조건
 
+```
+type StreamingEvent =
+  | {
+      type: 'message';           // assistant의 스트리밍 청크가 도착했을 때 발생
+      data?: SSEMessageData;     // 스트리밍으로 받은 데이터 (선택적, 실제 메시지 내용 포함)
+    }
+  | {
+      type: 'timeout';           // 지정된 시간(예: 30초) 안에 응답이 없을 경우 발생
+    }
+  | {
+      type: 'error';             // SSE 연결 중 에러 발생 시 사용됨
+      error: any;                // 에러 객체 포함
+    };
+```
+
 ### 2-3. ChatMessage 상태(sending, success, error) 전환 조건
 
 ## 3. 에러 케이스 분석
