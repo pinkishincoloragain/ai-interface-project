@@ -48,7 +48,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) 
         <div className="flex items-end">
             <textarea
                 ref={textareaRef}
-                className="flex-1 resize-none border border-gray-600 bg-gray-700 text-white rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed placeholder-gray-400 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                className="flex-1 resize-none border border-gray-600 bg-gray-700 text-white rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed placeholder-gray-400 scrollbar-hide"
                 placeholder="메시지를 입력하세요..."
                 rows={1}
                 onChange={handleChange}

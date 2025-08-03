@@ -66,7 +66,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages }) => {
         <div className="relative h-full flex flex-col">
             <div
                 ref={scrollContainerRef}
-                className="flex-1 overflow-y-auto p-4"
+                className="flex-1 overflow-y-auto p-4 scrollbar-hide"
                 onScroll={throttledHandleScroll}
                 style={{
                     scrollBehavior: 'smooth',
