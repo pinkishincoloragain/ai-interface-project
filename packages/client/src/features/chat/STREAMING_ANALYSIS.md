@@ -224,10 +224,48 @@ type StreamingEvent =
 1. HTTP 요청 실패 (Fetch 실패 또는 4xx/5xx 응답)
    chatApi.sendMessage()에서 .ok 체크 후 예외 발생
    예: 네트워크 오류, 인증 실패, 서버 장애 등
+   => 후처리는 mutationFn의 catch문 참고
 
 2. SSE 스트림 도중 오류 발생
    스트리밍 중 서버가 연결을 끊거나 유효하지 않은 데이터가 오는 경우
    SSE 파싱 로직에서 catch된 경우
+
+```
+//스트림 처리 중 reader.read() 실패 (네트워크 오류 등)
+try {
+    while (true) {
+        const { done, value } = await this.reader.read();
+        ...
+    }
+} catch (error) {
+    this.handleError(reject, error as Error);
+}
+```
+
+- fetch는 성공했지만, 이후 .read() 중에 서버 연결이 끊기거나 malformed 청크가 들어오면 여기서 catch됨.
+- handleError가 호출되며, 이 안에서 this.options.onError?.(error)가 실행됨 → useSendMessageMutation의 onError로 연결 가능.
+
+```
+//스트림 라인 파싱 중 JSON.parse(data) 실패 (유효하지 않은 데이터)
+try {
+    const messageData: SSEMessageData = JSON.parse(data);
+    ...
+} catch (parseError) {
+    console.warn('Failed to parse SSE data:', parseError);
+    return null; // 이 경우는 reject는 안 되고 무시됨
+}
+```
+
+- processSSELine()에서 발생하는데, 버그가 아니라 예외 처리해서 무시하고 계속 스트림. reject()는 호출되지 않음.
+
+```
+//서버에서 event: error를 명시적으로 보낸 경우
+else if (line.startsWith('event: error')) {
+    return { type: 'error', data: 'SSE Error occurred' };
+}
+```
+
+- processStreamChunks() 안에서 감지되고, this.handleError() 호출됨 → reject() 및 onError() 호출됨.
 
 3. 스트리밍 도중 isDone이 오지 않음 (서버 쪽 비정상 종료)
    메시지 상태가 sending으로 남고 success로 전환되지 않음
@@ -242,7 +280,7 @@ type StreamingEvent =
 | `isDone` 미도달  | 계속 ‘입력 중…’으로 보이며 응답 없음               | 상태 업데이트 미진행 (`sending` 유지) |
 | 정상 응답 완료   | 마크다운 메시지 정상 렌더링                        | `status = 'success'`                  |
 
-=> UI는 MarkdownMessageItem.tsx 기준으로 메시지 status 값에 따라 스타일링 및 메시지를 조절하고 있음.
+=> MarkdownMessageItem.tsx
 status === 'error'일 때 붉은 테두리, "오류 발생" 텍스트 노출됨.
 
 ### 3-3. 개선이 필요한 에러 시나리오들
@@ -252,7 +290,7 @@ status === 'error'일 때 붉은 테두리, "오류 발생" 텍스트 노출됨.
   해결책: status === 'error' 상태일 때 "다시 시도" 버튼 노출하고, 동일 메시지를 다시 전송할 수 있도록 핸들러 연결
 
 - isDone이 오지 않아 sending 상태에서 멈추는 케이스 감지 필요
-  일정 시간 이상 응답이 없으면 에러로 처리하는 타이머 로직 필요 (예: 20초 이상 대기 시 error로 간주)
+  일정 시간 이상 응답이 없으면 에러로 처리하는 타이머 로직 필요
 
 - 에러 로그 수집 및 사용자 피드백 제공
   예: "서버와의 연결이 끊겼습니다. 다시 시도해주세요." 같은 문구 추가
