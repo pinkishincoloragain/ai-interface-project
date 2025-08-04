@@ -212,6 +212,11 @@ type StreamingEvent =
 
 ### 2-3. ChatMessage 상태(sending, success, error) 전환 조건
 
+- user의 메시지는 바로 > success 상태로 : 화면에 바로 렌더링됨
+- assistant placeholder 메시지를 생성할 때 > 응답이 도착하기까지 sending
+- 스트리밍 완료시(isDone === true) > success
+- 스트리밍 중 오류 발생 > error
+
 ## 3. 에러 케이스 분석
 
 ### 3-1. 현재 처리되는 에러 유형들
