@@ -4,6 +4,7 @@ import { SSEMessageData } from '../api/chatApi';
  * SSE 스트리밍 이벤트 타입 정의
  */
 export interface StreamingEvent {
+    // 모든 스트리밍 단계에서 프론트에 전달되는 이벤트의 형태
     type: 'message' | 'error' | 'done' | 'timeout';
     data?: any;
     messageId?: string;
@@ -57,6 +58,16 @@ export interface StreamingHandlerOptions {
  * 4. 메모리 최적화: 장시간 스트리밍 시 메모리 누수 방지
  * 5. 테스트 가능성: Mock SSE 스트림 생성기 구현
  */
+
+/**
+Server-Sent Events (SSE) 기반으로 서버로부터 텍스트 스트림을 받아서, 메시지를 하나하나 분리해서 처리하는 핸들러 클래스
+1. handleStream(response) 호출 → 스트리밍 시작
+2. 청크가 오면 processStreamChunks가 한 줄씩 나눠 처리
+3. data: ... 형태의 SSE 라인을 만나면 processSSELine으로 디코딩 후 콜백 실행
+4. [DONE] 메시지를 받거나 오류가 나면 → 종료(handleComplete, handleError)
+5. 스트리밍 도중 30초 넘게 응답 없으면 timeout 이벤트 발생
+**/
+
 export class SSEStreamingHandler {
     private reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     private decoder = new TextDecoder();
