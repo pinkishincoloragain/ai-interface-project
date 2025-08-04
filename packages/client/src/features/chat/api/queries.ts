@@ -163,6 +163,7 @@ export const useSendMessageMutation = () => {
             } catch (error) {
                 setLoading(false);
                 // If we have an assistant message placeholder, mark it as error
+                // 현재 채팅 메시지 중에서, "assistant + 보내는 중(sending)" 상태인 메시지를 찾아서 상태를 error로 변경
                 const currentMessages = useChatStore.getState().messages;
                 const assistantMessage = currentMessages.find((m) => m.role === 'assistant' && m.status === 'sending');
                 if (assistantMessage) {
