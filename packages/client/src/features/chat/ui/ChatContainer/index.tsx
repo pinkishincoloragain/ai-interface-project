@@ -8,7 +8,7 @@ interface ChatContainerProps {
 }
 
 const ChatContainer: React.FC<ChatContainerProps> = ({ threadId, onThreadCreated }) => {
-    const { messages, loading, handleSendMessage } = useChatViewModel(threadId);
+    const { messages, loading, handleSendMessage, isStreaming, handleStopStream } = useChatViewModel(threadId);
 
     const onSendMessage = async (content: string) => {
         const newThreadId = await handleSendMessage(content);
@@ -23,7 +23,12 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ threadId, onThreadCreated
                 <MessageList messages={messages} />
             </div>
             <div className="border-t border-gray-700 p-4 flex-shrink-0">
-                <InputBoxWithCompose onSendMessage={onSendMessage} disabled={loading} />
+                <InputBoxWithCompose
+                    onSendMessage={onSendMessage}
+                    disabled={loading}
+                    isStreaming={isStreaming}
+                    onStopStream={handleStopStream}
+                />
             </div>
         </div>
     );

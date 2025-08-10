@@ -45,6 +45,17 @@ export interface StreamingHandlerOptions {
      * 완료 시 콜백
      */
     onComplete?: (threadId?: string) => void;
+
+    /**
+     * AbortController 인스턴스
+     * 외부에서 스트림 중단을 제어하기 위해 사용
+     */
+    abortController?: AbortController;
+
+    /**
+     * 중단 시 콜백
+     */
+    onAbort?: () => void;
 }
 
 /**
@@ -62,9 +73,19 @@ export class SSEStreamingHandler {
     private decoder = new TextDecoder();
     private buffer = '';
     private isComplete = false;
+    private isAborted = false;
     private timeoutId: NodeJS.Timeout | null = null;
+    private abortController: AbortController | null = null;
 
-    constructor(private options: StreamingHandlerOptions = {}) {}
+    constructor(private options: StreamingHandlerOptions = {}) {
+        // AbortController 설정
+        this.abortController = options.abortController || new AbortController();
+
+        // Abort 이벤트 리스너 등록
+        this.abortController.signal.addEventListener('abort', () => {
+            this.handleAbort();
+        });
+    }
 
     /**
      * SSE 스트림 처리 시작
@@ -73,6 +94,11 @@ export class SSEStreamingHandler {
      * @returns Promise<string | undefined> - 완료 시 스레드 ID 반환
      */
     async handleStream(response: Response): Promise<string | undefined> {
+        // 이미 중단된 경우 처리 중단
+        if (this.isAborted || this.abortController?.signal.aborted) {
+            throw new Error('Stream was aborted before starting');
+        }
+
         // TODO: Response 유효성 검증 추가 (상태 코드, 헤더 확인)
         if (!response.body) {
             throw new Error('Response body is null');
@@ -131,16 +157,33 @@ export class SSEStreamingHandler {
         try {
             // eslint-disable-next-line no-constant-condition
             while (true) {
+                // 중단 여부 확인
+                if (this.isAborted || this.abortController?.signal.aborted) {
+                    console.log('Stream processing aborted');
+                    return;
+                }
+
                 const { done, value } = await this.reader.read();
                 if (done) break;
 
-                // 텍스트 디코딩 및 라인 파싱
+                // 중단 체크 후 텍스트 디코딩 및 라인 파싱
+                if (this.isAborted || this.abortController?.signal.aborted) {
+                    console.log('Stream processing aborted during chunk processing');
+                    return;
+                }
+
                 this.buffer += this.decoder.decode(value, { stream: true });
                 const lines = this.buffer.split('\n');
                 this.buffer = lines.pop() || '';
 
                 // 각 라인 처리
                 for (const line of lines) {
+                    // 매 라인 처리 전 중단 여부 확인
+                    if (this.isAborted || this.abortController?.signal.aborted) {
+                        console.log('Stream processing aborted during line processing');
+                        return;
+                    }
+
                     const result = this.processSSELine(line);
 
                     if (result?.type === 'done') {
@@ -155,6 +198,11 @@ export class SSEStreamingHandler {
                 }
             }
         } catch (error) {
+            // AbortError는 정상적인 중단이므로 에러로 처리하지 않음
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.log('Stream processing was aborted');
+                return;
+            }
             this.handleError(reject, error as Error);
         }
     }
@@ -256,6 +304,55 @@ export class SSEStreamingHandler {
     }
 
     /**
+     * 중단 처리
+     *
+     * AbortController에 의해 호출되는 내부 메서드
+     */
+    private handleAbort(): void {
+        if (this.isAborted || this.isComplete) {
+            return;
+        }
+
+        console.log('Handling stream abort');
+        this.isAborted = true;
+
+        // 진행 중인 스트림 처리 중단
+        if (this.reader) {
+            try {
+                this.reader.cancel('Stream aborted by user');
+            } catch (error) {
+                console.warn('Error cancelling stream reader:', error);
+            }
+        }
+
+        // 콜백 호출
+        this.options.onAbort?.();
+
+        // 리소스 정리
+        this.cleanup();
+    }
+
+    /**
+     * 외부에서 스트림 중단
+     *
+     * 사용자가 명시적으로 스트림을 중단할 때 사용
+     */
+    abort(reason?: string): void {
+        if (this.isAborted || this.isComplete) {
+            return;
+        }
+
+        console.log('Aborting stream:', reason || 'No reason provided');
+
+        if (this.abortController && !this.abortController.signal.aborted) {
+            this.abortController.abort(reason || 'User requested cancellation');
+        } else {
+            // AbortController가 없거나 이미 중단된 경우 직접 처리
+            this.handleAbort();
+        }
+    }
+
+    /**
      * 스트림 중단
      *
      * TODO: Graceful shutdown
@@ -264,8 +361,30 @@ export class SSEStreamingHandler {
      * 3. 재시작 지점 마킹
      */
     cancel(): void {
-        this.isComplete = true;
-        this.cleanup();
+        this.abort('Stream cancelled');
+    }
+
+    /**
+     * AbortController 반환
+     *
+     * @returns AbortController 인스턴스
+     */
+    getAbortController(): AbortController | null {
+        return this.abortController;
+    }
+
+    /**
+     * 스트림 상태 확인
+     *
+     * @returns 스트림 상태 정보
+     */
+    getStatus() {
+        return {
+            isComplete: this.isComplete,
+            isAborted: this.isAborted,
+            isActive: !this.isComplete && !this.isAborted,
+            hasReader: !!this.reader,
+        };
     }
 }
 

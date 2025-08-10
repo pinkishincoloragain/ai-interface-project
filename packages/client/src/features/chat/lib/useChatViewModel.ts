@@ -4,7 +4,8 @@ import { useSendMessageMutation } from '../api';
 import { useThreadMessagesQuery, useThreadsQuery } from '@/features/thread';
 
 export const useChatViewModel = (threadId?: string) => {
-    const { messages, currentThreadId, loading, setCurrentThreadId, clearMessages } = useChatStore();
+    const { messages, currentThreadId, loading, isStreaming, setCurrentThreadId, clearMessages, abortCurrentStream } =
+        useChatStore();
 
     const sendMessageMutation = useSendMessageMutation();
     const threadMessagesQuery = useThreadMessagesQuery(threadId);
@@ -34,11 +35,17 @@ export const useChatViewModel = (threadId?: string) => {
         }
     };
 
+    const handleStopStream = () => {
+        abortCurrentStream();
+    };
+
     return {
         messages,
         currentThreadId,
         loading: loading || sendMessageMutation.isPending || threadMessagesQuery.isLoading,
+        isStreaming,
         handleSendMessage,
+        handleStopStream,
         isError: sendMessageMutation.isError || threadMessagesQuery.isError,
         error: sendMessageMutation.error || threadMessagesQuery.error,
     };

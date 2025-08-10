@@ -5,6 +5,7 @@ import { ChatMessage } from '@/shared';
 import { v4 as uuidv4 } from 'uuid';
 import { QUERY_KEYS } from '@/shared/lib/react-query';
 import { createStreamingHandler, StreamingEvent } from '../lib/streamingHandler';
+import { getStreamingManager } from '../lib/streamingController';
 
 export interface SendMessageParams {
     content: string;
@@ -18,6 +19,7 @@ export const useSendMessageMutation = () => {
     const removeMessage = useChatStore((state) => state.removeMessage);
     const setCurrentThreadId = useChatStore((state) => state.setCurrentThreadId);
     const setLoading = useChatStore((state) => state.setLoading);
+    const setStreaming = useChatStore((state) => state.setStreaming);
     const currentThreadId = useChatStore((state) => state.currentThreadId);
 
     return useMutation({
@@ -65,10 +67,32 @@ export const useSendMessageMutation = () => {
                 // 3. 메시지 중복 방지: 재전송 시 중복 메시지 처리
                 // 4. 실시간 타이핑 인디케이터: 더 정교한 사용자 피드백
 
+                // 스트림 관리자를 통해 AbortController 생성 및 관리
+                const streamingManager = getStreamingManager();
+                const streamId = `message-${assistantPlaceholderId}`;
+                const abortController = streamingManager.startStream(streamId, {
+                    threadId: threadId || currentThreadId,
+                    messageId: assistantPlaceholderId,
+                });
+
+                // 스트리밍 상태 설정
+                setStreaming(true, streamId);
+
                 const streamingHandler = createStreamingHandler({
                     messageId: assistantPlaceholderId,
                     currentThreadId: threadId || currentThreadId,
                     timeout: 30000,
+                    abortController,
+
+                    // 중단 시 콜백
+                    onAbort: () => {
+                        console.log('Stream aborted for message:', assistantPlaceholderId);
+                        setLoading(false);
+                        setStreaming(false);
+                        if (assistantMessageId) {
+                            updateMessage(assistantMessageId, { status: 'error' });
+                        }
+                    },
 
                     // 스트리밍 이벤트 처리
                     onEvent: (event: StreamingEvent) => {
@@ -122,6 +146,7 @@ export const useSendMessageMutation = () => {
                     // 완료 처리
                     onComplete: (_responseThreadId) => {
                         setLoading(false);
+                        setStreaming(false);
                         if (assistantMessageId) {
                             updateMessage(assistantMessageId, { status: 'success' });
                         }
@@ -130,6 +155,7 @@ export const useSendMessageMutation = () => {
                     // 에러 처리
                     onError: (error) => {
                         setLoading(false);
+                        setStreaming(false);
                         if (assistantMessageId) {
                             updateMessage(assistantMessageId, { status: 'error' });
                         }
@@ -140,6 +166,7 @@ export const useSendMessageMutation = () => {
                 return streamingHandler.handleStream(response);
             } catch (error) {
                 setLoading(false);
+                setStreaming(false);
                 // If we have an assistant message placeholder, mark it as error
                 const currentMessages = useChatStore.getState().messages;
                 const assistantMessage = currentMessages.find((m) => m.role === 'assistant' && m.status === 'sending');

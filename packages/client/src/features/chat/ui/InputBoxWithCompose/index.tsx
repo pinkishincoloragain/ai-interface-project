@@ -3,9 +3,11 @@ import React, { useEffect, useRef, useState } from 'react';
 interface InputBoxProps {
     onSendMessage: (message: string) => void;
     disabled?: boolean;
+    isStreaming?: boolean;
+    onStopStream?: () => void;
 }
 
-const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) => {
+const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false, isStreaming = false, onStopStream }) => {
     const [message, setMessage] = useState('');
     const [isComposing, setIsComposing] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -61,13 +63,26 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) 
                 onCompositionEnd={() => setIsComposing(false)}
                 disabled={disabled}
             />
-            <button
-                className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                onClick={handleSubmit}
-                disabled={!message.trim() || disabled}
-            >
-                전송
-            </button>
+            {isStreaming && onStopStream ? (
+                <button
+                    className="ml-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                    onClick={onStopStream}
+                    title="스트리밍 중단"
+                >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <rect x="6" y="4" width="8" height="12" rx="1" />
+                    </svg>
+                    중단
+                </button>
+            ) : (
+                <button
+                    className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    onClick={handleSubmit}
+                    disabled={!message.trim() || disabled}
+                >
+                    전송
+                </button>
+            )}
         </div>
     );
 };
