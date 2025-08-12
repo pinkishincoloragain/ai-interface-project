@@ -1,4 +1,5 @@
 import { SSEMessageData } from '../api/chatApi';
+import { streamThrottler } from './streamThrottler';
 
 /**
  * SSE 스트리밍 이벤트 타입 정의
@@ -180,19 +181,25 @@ export class SSEStreamingHandler {
                 // TODO: Zod 스키마 검증 추가
                 const messageData: SSEMessageData = JSON.parse(data);
 
-                this.options.onEvent?.({
-                    type: 'message',
-                    data: messageData,
-                    messageId: messageData.id,
-                    content: messageData.content,
-                    conversationId: messageData.conversationId,
-                });
+                // streamThrottler를 통해 텍스트 처리
+                if (messageData.content) {
+                    streamThrottler.processText(messageData.content, (chunk) => {
+                        this.options.onEvent?.({
+                            type: 'message',
+                            data: { ...messageData, content: chunk }, // 청크만 포함된 데이터
+                            messageId: messageData.id,
+                            content: chunk,
+                            conversationId: messageData.conversationId,
+                        });
+                    });
+                }
 
                 return {
                     type: 'message',
                     data: messageData,
                     messageId: messageData.id,
-                    content: messageData.content,
+                    // 전체 content를 반환하지 않도록 수정 (throttler가 처리하므로)
+                    content: '',
                     conversationId: messageData.conversationId,
                 };
             } catch (parseError) {

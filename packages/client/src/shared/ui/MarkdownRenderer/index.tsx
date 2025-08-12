@@ -43,18 +43,14 @@ interface MarkdownRendererProps {
 
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(
     ({ content, isStreaming = false, className = '' }) => {
-        const [tokens, setTokens] = useState<TokenState[]>([]);
-        const prevContentRef = useRef<string>('');
+        const [displayedContent, setDisplayedContent] = useState('');
+        const [showCursor, setShowCursor] = useState(false);
 
-        // Style definitions
-        // const tokenStyle = getTokenStyle();
-        // const fadeInStyle = getFadeInStyle();
         const markdownContainerStyle = getMarkdownContainerStyle();
         const codeBlockStyle = getCodeBlockStyle();
         const inlineCodeStyle = getInlineCodeStyle();
 
         useEffect(() => {
-            // Add keyframes and additional markdown styles
             const styleElement = document.createElement('style');
             styleElement.textContent = `
             ${getMarkdownStyles()}
@@ -63,7 +59,12 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(
                 51%, 100% { opacity: 0; }
             }
             .typing-indicator {
+                background-color: #60a5fa;
                 animation: blink 1s infinite;
+                display: inline-block;
+                width: 8px;
+                height: 1.2em;
+                margin-left: 2px;
             }
         `;
             document.head.appendChild(styleElement);
@@ -76,39 +77,27 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(
         }, []);
 
         useEffect(() => {
-            // Identify new text when content changes
-            if (content !== prevContentRef.current) {
-                const prevContent = prevContentRef.current;
-                const commonLength = getCommonPrefixLength(prevContent, content);
+            if (isStreaming) {
+                setShowCursor(true);
+                if (content.length > displayedContent.length) {
+                    const newText = content.substring(displayedContent.length);
+                    let i = 0;
+                    const timer = setInterval(() => {
+                        setDisplayedContent((prev) => prev + newText[i]);
+                        i++;
+                        if (i >= newText.length) {
+                            clearInterval(timer);
+                        }
+                    }, 50); // 50ms delay for typing effect
 
-                if (commonLength === prevContent.length && prevContent.length > 0) {
-                    // Only new text was added - append efficiently
-                    const newContent = content.slice(commonLength);
-                    if (newContent) {
-                        setTokens((prev) => {
-                            const updatedTokens = prev.map((token) => ({ ...token, isNew: false }));
-                            return [...updatedTokens, { content: newContent, isNew: true }];
-                        });
-                    }
-                } else {
-                    // Text was changed or is initial content - replace entirely
-                    setTokens([{ content, isNew: isStreaming }]);
+                    return () => clearInterval(timer);
                 }
-
-                prevContentRef.current = content;
+            } else {
+                // If not streaming, show the full content immediately
+                setDisplayedContent(content);
+                setShowCursor(false);
             }
         }, [content, isStreaming]);
-
-        useEffect(() => {
-            // Remove 'new' status after animation time
-            if (isStreaming) {
-                const timer = setTimeout(() => {
-                    setTokens((current) => current.map((token) => ({ ...token, isNew: false })));
-                }, 300); // Reduced animation time for better performance
-
-                return () => clearTimeout(timer);
-            }
-        }, [tokens, isStreaming]);
 
         // Render the complete content as markdown for better performance
         return (
@@ -245,21 +234,9 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(
                         ),
                     }}
                 >
-                    {content}
+                    {displayedContent}
                 </ReactMarkdown>
-                {isStreaming && (
-                    <span
-                        className="typing-indicator"
-                        style={{
-                            display: 'inline-block',
-                            width: '8px',
-                            height: '1.2em',
-                            backgroundColor: '#60a5fa',
-                            animation: 'blink 1s infinite',
-                            marginLeft: '2px',
-                        }}
-                    />
-                )}
+                {showCursor && <span className="typing-indicator" />}
             </div>
         );
     }
