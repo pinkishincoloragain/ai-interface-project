@@ -67,7 +67,7 @@ ai-interface-project/
     OPENAI_TEMPERATURE=0.7
     ```
 
-    > **중요**: OpenAI API 키는 [OpenAI 플랫폼](https://platform.openai.com/api-keys)에서 발급받을 수 있습니다.
+    > **중요**: OpenAI API 키는 [STREAMING_STUDY.md](https://github.com/pinkishincoloragain/ai-interface-project/blob/main/STREAMING_STUDY.md)) 최하단을 확인해주세요.
 
 2. **OpenAI 설정 테스트**
 
