@@ -1,3 +1,4 @@
+/* FIXME: 1. 도메인 필드 > 챗 메시지 데이터에 대한 내용 */
 import { SSEMessageData } from '../api/chatApi';
 
 /**
@@ -6,6 +7,7 @@ import { SSEMessageData } from '../api/chatApi';
 export interface StreamingEvent {
     type: 'message' | 'error' | 'done' | 'timeout';
     data?: any;
+    /* FIXME: 1. 도메인 필드 > 챗 메시지 데이터에 대한 내용*/
     messageId?: string;
     content?: string;
     conversationId?: string;
@@ -24,16 +26,19 @@ export interface StreamingHandlerOptions {
     /**
      * 메시지 ID (없으면 자동 생성)
      */
+    /* FIXME: 1. 도메인 필드 > 챗 메시지 데이터에 대한 내용 */
     messageId?: string;
 
     /**
      * 현재 스레드 ID
      */
+    /* FIXME: 1. 도메인 필드 > 챗 메시지 데이터에 대한 내용 */
     currentThreadId?: string;
 
     /**
      * 스트리밍 이벤트 콜백
      */
+    /* FIXME: 1. 도메인 필드 > 챗 메시지 데이터에 대한 내용 */
     onEvent?: (event: StreamingEvent) => void;
 
     /**
@@ -44,6 +49,7 @@ export interface StreamingHandlerOptions {
     /**
      * 완료 시 콜백
      */
+    /* FIXME: 1. 도메인 필드 > 챗 메시지 데이터에 대한 내용 */
     onComplete?: (threadId?: string) => void;
 }
 
@@ -79,6 +85,7 @@ export class SSEStreamingHandler {
         }
 
         this.reader = response.body.getReader();
+        /* FIXME: 도메인 필드 */
         const responseThreadId = this.options.currentThreadId;
 
         return new Promise<string | undefined>((resolve, reject) => {
@@ -105,6 +112,7 @@ export class SSEStreamingHandler {
                 console.warn('SSE timeout, falling back to error state');
                 this.options.onEvent?.({
                     type: 'timeout',
+                    /* FIXME: 1. 도메인 필드 > 챗 메시지 데이터에 대한 내용 */
                     messageId: this.options.messageId,
                 });
                 this.cleanup();
@@ -144,12 +152,14 @@ export class SSEStreamingHandler {
                     const result = this.processSSELine(line);
 
                     if (result?.type === 'done') {
+                        /* FIXME: 1. 도메인 필드 > 챗 메시지 데이터에 대한 내용 */
                         this.handleComplete(resolve, result.conversationId || responseThreadId);
                         return;
                     } else if (result?.type === 'error') {
                         this.handleError(reject, new Error(result.data));
                         return;
                     } else if (result?.conversationId) {
+                        /* FIXME: 1. 도메인 필드 > 챗 메시지 데이터에 대한 내용 */
                         responseThreadId = result.conversationId;
                     }
                 }
@@ -183,6 +193,7 @@ export class SSEStreamingHandler {
                 this.options.onEvent?.({
                     type: 'message',
                     data: messageData,
+                    /* FIXME: 1. 도메인 필드 > 챗 메시지 데이터에 대한 내용 */
                     messageId: messageData.id,
                     content: messageData.content,
                     conversationId: messageData.conversationId,
@@ -191,6 +202,7 @@ export class SSEStreamingHandler {
                 return {
                     type: 'message',
                     data: messageData,
+                    /* FIXME: 1. 도메인 필드 > 챗 메시지 데이터에 대한 내용 */
                     messageId: messageData.id,
                     content: messageData.content,
                     conversationId: messageData.conversationId,
@@ -211,10 +223,12 @@ export class SSEStreamingHandler {
     /**
      * 스트림 완료 처리
      */
+    /* FIXME: 1. 도메인 필드 > 챗 메시지 데이터에 대한 내용 */
     private handleComplete(resolve: (value: string | undefined) => void, threadId?: string): void {
         this.isComplete = true;
         this.cleanup();
         this.options.onComplete?.(threadId);
+        /* FIXME: 1. 도메인 필드 > 챗 메시지 데이터에 대한 내용 */
         resolve(threadId);
     }
 
