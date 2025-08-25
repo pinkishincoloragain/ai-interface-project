@@ -11,9 +11,16 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
-        if (textareaRef.current) {
-            textareaRef.current.focus();
-        }
+        const handleWindowFocus = () => {
+            textareaRef.current?.focus();
+        };
+
+        // 처음 컴포넌트가 마운트 될때 포커스
+        handleWindowFocus();
+
+        // 윈도우 focus 시 포커스 > 사용자가 브라우저 창을 다시 활성화했을 때 입력창에 자동으로 포커스를 맞춰 UX 향상
+        window.addEventListener('focus', handleWindowFocus);
+        return () => window.removeEventListener('focus', handleWindowFocus);
     }, []);
 
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
