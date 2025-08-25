@@ -1,20 +1,15 @@
-import type { SSEMessageData } from '@/shared/api';
-
 /**
  * SSE 스트리밍 이벤트 타입 정의
  */
-export interface StreamingEvent {
+export interface StreamingEvent<T> {
     type: 'message' | 'error' | 'done' | 'timeout';
-    data?: any;
-    messageId?: string;
-    content?: string;
-    conversationId?: string;
+    data?: T;
 }
 
 /**
  * 스트리밍 핸들러 옵션
  */
-export interface StreamingHandlerOptions {
+export interface StreamingHandlerOptions<T> {
     /**
      * 스트리밍 타임아웃 (밀리초)
      * @default 30000
@@ -22,19 +17,9 @@ export interface StreamingHandlerOptions {
     timeout?: number;
 
     /**
-     * 메시지 ID (없으면 자동 생성)
-     */
-    messageId?: string;
-
-    /**
-     * 현재 스레드 ID
-     */
-    currentThreadId?: string;
-
-    /**
      * 스트리밍 이벤트 콜백
      */
-    onEvent?: (event: StreamingEvent) => void;
+    onEvent?: (event: StreamingEvent<T>) => void;
 
     /**
      * 에러 발생 시 콜백
@@ -44,7 +29,12 @@ export interface StreamingHandlerOptions {
     /**
      * 완료 시 콜백
      */
-    onComplete?: (threadId?: string) => void;
+    onComplete?: () => void;
+
+    /**
+     * 메시지 파서
+     */
+    parseData: (json: string) => T;
 }
 
 /**
@@ -57,14 +47,14 @@ export interface StreamingHandlerOptions {
  * 4. 메모리 최적화: 장시간 스트리밍 시 메모리 누수 방지
  * 5. 테스트 가능성: Mock SSE 스트림 생성기 구현
  */
-export class SSEStreamingHandler {
+export class SSEStreamingHandler<T> {
     private reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     private decoder = new TextDecoder();
     private buffer = '';
     private isComplete = false;
     private timeoutId: NodeJS.Timeout | null = null;
 
-    constructor(private options: StreamingHandlerOptions = {}) {}
+    constructor(private options: StreamingHandlerOptions<T>) {}
 
     /**
      * SSE 스트림 처리 시작
@@ -79,14 +69,13 @@ export class SSEStreamingHandler {
         }
 
         this.reader = response.body.getReader();
-        const responseThreadId = this.options.currentThreadId;
 
         return new Promise<string | undefined>((resolve, reject) => {
             // 타임아웃 설정
             this.setupTimeout(reject);
 
             // 스트림 처리 시작
-            this.processStreamChunks(resolve, reject, responseThreadId);
+            this.processStreamChunks(resolve, reject);
         });
     }
 
@@ -105,7 +94,6 @@ export class SSEStreamingHandler {
                 console.warn('SSE timeout, falling back to error state');
                 this.options.onEvent?.({
                     type: 'timeout',
-                    messageId: this.options.messageId,
                 });
                 this.cleanup();
                 reject(new Error('SSE timeout'));
@@ -123,8 +111,7 @@ export class SSEStreamingHandler {
      */
     private async processStreamChunks(
         resolve: (value: string | undefined) => void,
-        reject: (reason?: any) => void,
-        responseThreadId?: string
+        reject: (reason?: any) => void
     ): Promise<void> {
         if (!this.reader) return;
 
@@ -144,13 +131,11 @@ export class SSEStreamingHandler {
                     const result = this.processSSELine(line);
 
                     if (result?.type === 'done') {
-                        this.handleComplete(resolve, result.conversationId || responseThreadId);
+                        this.handleComplete(resolve);
                         return;
                     } else if (result?.type === 'error') {
-                        this.handleError(reject, new Error(result.data));
+                        this.handleError(reject, new Error(line));
                         return;
-                    } else if (result?.conversationId) {
-                        responseThreadId = result.conversationId;
                     }
                 }
             }
@@ -167,7 +152,7 @@ export class SSEStreamingHandler {
      * 2. 타입 가드: 런타임 타입 안정성 보장
      * 3. 에러 복구: 파싱 실패 시 복구 전략
      */
-    private processSSELine(line: string): StreamingEvent | null {
+    private processSSELine(line: string): StreamingEvent<T> | null {
         if (line.startsWith('data: ')) {
             const data = line.slice(6).trim();
 
@@ -178,22 +163,16 @@ export class SSEStreamingHandler {
 
             try {
                 // TODO: Zod 스키마 검증 추가
-                const messageData: SSEMessageData = JSON.parse(data);
+                const parsedData = this.options.parseData(data);
 
                 this.options.onEvent?.({
                     type: 'message',
-                    data: messageData,
-                    messageId: messageData.id,
-                    content: messageData.content,
-                    conversationId: messageData.conversationId,
+                    data: parsedData,
                 });
 
                 return {
                     type: 'message',
-                    data: messageData,
-                    messageId: messageData.id,
-                    content: messageData.content,
-                    conversationId: messageData.conversationId,
+                    data: parsedData,
                 };
             } catch (parseError) {
                 console.warn('Failed to parse SSE data:', parseError);
@@ -202,7 +181,7 @@ export class SSEStreamingHandler {
             }
         } else if (line.startsWith('event: error')) {
             // TODO: 구조화된 에러 처리
-            return { type: 'error', data: 'SSE Error occurred' };
+            return { type: 'error' };
         }
 
         return null;
@@ -211,11 +190,11 @@ export class SSEStreamingHandler {
     /**
      * 스트림 완료 처리
      */
-    private handleComplete(resolve: (value: string | undefined) => void, threadId?: string): void {
+    private handleComplete(resolve: (value?: string) => void): void {
         this.isComplete = true;
         this.cleanup();
-        this.options.onComplete?.(threadId);
-        resolve(threadId);
+        this.options.onComplete?.();
+        resolve();
     }
 
     /**
@@ -275,7 +254,7 @@ export class SSEStreamingHandler {
  * @param options - 스트리밍 옵션
  * @returns SSEStreamingHandler 인스턴스
  */
-export function createStreamingHandler(options: StreamingHandlerOptions = {}): SSEStreamingHandler {
+export function createStreamingHandler<T>(options: StreamingHandlerOptions<T>): SSEStreamingHandler<T> {
     return new SSEStreamingHandler(options);
 }
 

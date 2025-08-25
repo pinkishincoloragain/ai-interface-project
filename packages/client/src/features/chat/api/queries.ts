@@ -4,7 +4,7 @@ import { useChatStore } from '../model/store';
 import { MessageFactory, type ChatMessage } from '@/entities/message';
 import type { SSEMessageData } from '@/shared/api';
 import { QUERY_KEYS } from '@/shared/lib/react-query';
-import { createStreamingHandler, StreamingEvent } from '../lib/streamingHandler';
+import { createStreamingHandler } from '../lib/streamingHandler';
 
 export interface SendMessageParams {
     content: string;
@@ -53,19 +53,21 @@ export const useSendMessageMutation = () => {
                 // 3. 메시지 중복 방지: 재전송 시 중복 메시지 처리
                 // 4. 실시간 타이핑 인디케이터: 더 정교한 사용자 피드백
 
+                let responseThreadId = threadId || currentThreadId;
                 const streamingHandler = createStreamingHandler({
-                    messageId: assistantPlaceholder.id,
-                    currentThreadId: threadId || currentThreadId,
                     timeout: 60000,
 
+                    parseData: (json) => JSON.parse(json) as SSEMessageData,
+
                     // 스트리밍 이벤트 처리
-                    onEvent: (event: StreamingEvent) => {
+                    onEvent: (event) => {
                         if (event.type === 'message' && event.data) {
-                            const messageData = event.data as SSEMessageData;
+                            const messageData = event.data;
 
                             // 스레드 ID 업데이트
                             if (messageData.conversationId && !currentThreadId) {
                                 setCurrentThreadId(messageData.conversationId);
+                                responseThreadId = messageData.conversationId;
                             }
 
                             // 메시지 ID 동기화
@@ -111,12 +113,11 @@ export const useSendMessageMutation = () => {
                     },
 
                     // 완료 처리
-                    onComplete: (responseThreadId) => {
+                    onComplete: () => {
                         setLoading(false);
                         if (assistantMessageId) {
                             updateMessage(assistantMessageId, { status: 'success' });
                         }
-
                         // Invalidate queries after streaming completes
                         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.threads.list() });
                         if (responseThreadId) {
@@ -145,9 +146,6 @@ export const useSendMessageMutation = () => {
                 }
                 throw error;
             }
-        },
-        onSuccess: (_responseThreadId) => {
-            // Query invalidation is now handled in the streaming completion handler
         },
         onError: (error) => {
             console.error('Failed to send message:', error);
