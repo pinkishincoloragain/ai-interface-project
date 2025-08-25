@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 interface InputBoxProps {
     onSendMessage: (message: string) => void;
@@ -10,25 +10,25 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) 
     const [isComposing, setIsComposing] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    useEffect(() => {
-        const handleWindowFocus = () => {
-            textareaRef.current?.focus();
-        };
+    const focusTextarea = useCallback(() => {
+        textareaRef.current?.focus();
+    }, []);
 
+    useEffect(() => {
         // 처음 컴포넌트가 마운트 될때 포커스
-        handleWindowFocus();
+        focusTextarea();
 
         // 윈도우 focus 시 포커스 > 사용자가 브라우저 창을 다시 활성화했을 때 입력창에 자동으로 포커스를 맞춰 UX 향상
-        window.addEventListener('focus', handleWindowFocus);
-        return () => window.removeEventListener('focus', handleWindowFocus);
-    }, []);
+        window.addEventListener('focus', focusTextarea);
+        return () => window.removeEventListener('focus', focusTextarea);
+    }, [focusTextarea]);
 
     // 메시지 응답 완료 후 입력창 포커스
     useEffect(() => {
         if (!disabled) {
-            textareaRef.current?.focus();
+            focusTextarea();
         }
-    }, [disabled]);
+    }, [disabled, focusTextarea]);
 
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setMessage(e.target.value);
