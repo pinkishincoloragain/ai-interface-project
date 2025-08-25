@@ -2,9 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { chatApi } from './chatApi';
 import { useChatStore } from '../model/store';
 import { MessageFactory, type ChatMessage } from '@/entities/message';
-import type { SSEMessageData } from '@/shared/api';
 import { QUERY_KEYS } from '@/shared/lib/react-query';
-import { createStreamingHandler, StreamingEvent } from '../lib/streamingHandler';
+import { createChatSSEAdapter } from '../lib/chat-sse-adapter';
 
 export interface SendMessageParams {
     content: string;
@@ -43,98 +42,123 @@ export const useSendMessageMutation = () => {
                 const assistantPlaceholder = MessageFactory.createAssistantMessage('');
                 addMessage(assistantPlaceholder);
 
-                // Process SSE stream with the new streaming handler
+                // Process SSE stream with the enhanced architecture
                 let assistantMessageId: string | null = assistantPlaceholder.id;
-                let accumulatedContent = '';
 
-                // TODO: Group Study 개선 과제
-                // 1. 메시지 상태 관리 최적화: 낙관적 업데이트 vs 서버 확인 전략
-                // 2. 오프라인 지원: 네트워크 끊김 시 메시지 큐잉
-                // 3. 메시지 중복 방지: 재전송 시 중복 메시지 처리
-                // 4. 실시간 타이핑 인디케이터: 더 정교한 사용자 피드백
-
-                const streamingHandler = createStreamingHandler({
+                // Create enhanced SSE adapter with better error handling and retry logic
+                const chatAdapter = createChatSSEAdapter({
                     messageId: assistantPlaceholder.id,
-                    currentThreadId: threadId || currentThreadId,
+                    conversationId: threadId || currentThreadId,
                     timeout: 60000,
+                    autoRetry: true,
+                    retryConfig: {
+                        maxAttempts: 3,
+                        initialDelay: 1000,
+                        maxDelay: 10000,
+                        backoffMultiplier: 2,
+                    },
+                });
 
-                    // 스트리밍 이벤트 처리
-                    onEvent: (event: StreamingEvent) => {
-                        if (event.type === 'message' && event.data) {
-                            const messageData = event.data as SSEMessageData;
+                // Set up enhanced event handlers
+                chatAdapter.setHandlers({
+                    // Handle streaming messages
+                    onMessage: (event) => {
+                        // Update thread ID if not set
+                        if (event.conversationId && !currentThreadId) {
+                            setCurrentThreadId(event.conversationId);
+                        }
 
-                            // 스레드 ID 업데이트
-                            if (messageData.conversationId && !currentThreadId) {
-                                setCurrentThreadId(messageData.conversationId);
+                        // Handle message ID synchronization
+                        if (event.messageId !== assistantMessageId) {
+                            const oldId = assistantMessageId;
+                            assistantMessageId = event.messageId;
+
+                            if (oldId) {
+                                removeMessage(oldId);
                             }
+                        }
 
-                            // 메시지 ID 동기화
-                            // TODO: 개선 - 메시지 ID 충돌 처리 로직 강화
-                            if (messageData.id && messageData.id !== assistantMessageId) {
-                                const oldId = assistantMessageId;
-                                assistantMessageId = messageData.id;
+                        // Update message content
+                        if (event.content !== undefined) {
+                            const assistantMessage: ChatMessage = {
+                                id: assistantMessageId!,
+                                role: 'assistant',
+                                content: event.content,
+                                createdAt: new Date().toISOString(),
+                                status: event.isDone ? 'success' : 'sending',
+                            };
 
-                                if (oldId) {
-                                    removeMessage(oldId);
-                                }
-                            }
+                            // Check if message exists and update accordingly
+                            const currentMessages = useChatStore.getState().messages;
+                            const existingMessage = currentMessages.find((m) => m.id === assistantMessageId);
 
-                            // 어시스턴트 메시지 업데이트
-                            if (messageData.content !== undefined) {
-                                // 스트리밍 컨텐츠 누적
-                                accumulatedContent += messageData.content;
-
-                                const assistantMessage: ChatMessage = {
-                                    id: assistantMessageId!,
-                                    role: 'assistant',
-                                    content: accumulatedContent,
-                                    createdAt: new Date().toISOString(),
-                                    status: messageData.isDone ? 'success' : 'sending',
-                                };
-
-                                // TODO: 성능 개선 - 불필요한 스토어 조회 최적화
-                                const currentMessages = useChatStore.getState().messages;
-                                const existingMessage = currentMessages.find((m) => m.id === assistantMessageId);
-
-                                if (existingMessage) {
-                                    updateMessage(assistantMessageId!, assistantMessage);
-                                } else {
-                                    addMessage(assistantMessage);
-                                }
-                            }
-                        } else if (event.type === 'timeout') {
-                            // 타임아웃 처리
-                            if (assistantMessageId) {
-                                updateMessage(assistantMessageId, { status: 'error' });
+                            if (existingMessage) {
+                                updateMessage(assistantMessageId!, assistantMessage);
+                            } else {
+                                addMessage(assistantMessage);
                             }
                         }
                     },
 
-                    // 완료 처리
-                    onComplete: (responseThreadId) => {
+                    // Handle errors with user-friendly messages
+                    onError: (event) => {
                         setLoading(false);
+
+                        if (assistantMessageId) {
+                            // Create error message with user-friendly text
+                            updateMessage(assistantMessageId, {
+                                status: 'error',
+                                content: event.userMessage || '오류가 발생했습니다.',
+                            });
+                        }
+
+                        console.error('Enhanced streaming error:', {
+                            type: event.error.type,
+                            message: event.error.message,
+                            recoverable: event.error.recoverable,
+                            userMessage: event.userMessage,
+                        });
+                    },
+
+                    // Handle completion
+                    onComplete: (event) => {
+                        setLoading(false);
+
                         if (assistantMessageId) {
                             updateMessage(assistantMessageId, { status: 'success' });
                         }
 
                         // Invalidate queries after streaming completes
                         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.threads.list() });
-                        if (responseThreadId) {
-                            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.threads.messages(responseThreadId) });
+                        if (event.conversationId) {
+                            queryClient.invalidateQueries({
+                                queryKey: QUERY_KEYS.threads.messages(event.conversationId),
+                            });
                         }
                     },
 
-                    // 에러 처리
-                    onError: (error) => {
+                    // Handle timeout with better UX
+                    onTimeout: () => {
                         setLoading(false);
+
                         if (assistantMessageId) {
-                            updateMessage(assistantMessageId, { status: 'error' });
+                            updateMessage(assistantMessageId, {
+                                status: 'error',
+                                content: '요청 시간이 초과되었습니다. 다시 시도해주세요.',
+                            });
                         }
-                        console.error('Streaming error:', error);
+                    },
+
+                    // Handle retry attempts
+                    onRetry: (event) => {
+                        console.log(
+                            `Retrying request (attempt ${event.attempt}), next retry in ${event.nextRetryIn}ms`
+                        );
+                        // Could show retry UI feedback here
                     },
                 });
 
-                return streamingHandler.handleStream(response);
+                return chatAdapter.stream(response);
             } catch (error) {
                 setLoading(false);
                 // If we have an assistant message placeholder, mark it as error
