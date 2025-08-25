@@ -23,6 +23,13 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false }) 
         return () => window.removeEventListener('focus', handleWindowFocus);
     }, []);
 
+    // 메시지 응답 완료 후 입력창 포커스
+    useEffect(() => {
+        if (!disabled) {
+            textareaRef.current?.focus();
+        }
+    }, [disabled]);
+
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setMessage(e.target.value);
 
