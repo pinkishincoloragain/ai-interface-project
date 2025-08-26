@@ -8,7 +8,8 @@ export interface ChatCompletionResponse {
 }
 
 export const chatApi = {
-    sendMessage: chatApiClient.sendMessage.bind(chatApiClient),
+    sendMessage: (messages: ChatMessage[], conversationId?: string, signal?: AbortSignal) =>
+        chatApiClient.sendMessage(messages, conversationId, signal),
 };
 
 // Legacy support

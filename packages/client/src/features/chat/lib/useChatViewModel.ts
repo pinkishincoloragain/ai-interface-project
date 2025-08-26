@@ -4,7 +4,7 @@ import { useSendMessageMutation } from '../api';
 import { useThreadMessagesQuery, useThreadsQuery } from '@/features/thread';
 
 export const useChatViewModel = (threadId?: string) => {
-    const { messages, currentThreadId, loading, setCurrentThreadId, clearMessages } = useChatStore();
+    const { messages, currentThreadId, loading, abortController, setCurrentThreadId, clearMessages } = useChatStore();
 
     const sendMessageMutation = useSendMessageMutation();
     const threadMessagesQuery = useThreadMessagesQuery(threadId);
@@ -26,6 +26,8 @@ export const useChatViewModel = (threadId?: string) => {
     }, [threadId, currentThreadId, setCurrentThreadId, clearMessages]);
 
     const handleSendMessage = async (content: string): Promise<string | undefined> => {
+        if (loading) return;
+
         try {
             const result = await sendMessageMutation.mutateAsync({
                 content,
@@ -39,11 +41,18 @@ export const useChatViewModel = (threadId?: string) => {
         }
     };
 
+    const handleAbortStream = () => {
+        if (abortController && loading) {
+            abortController.abort('사용자가 스트림을 중단했습니다');
+        }
+    };
+
     return {
         messages,
         currentThreadId,
         loading: loading || sendMessageMutation.isPending || threadMessagesQuery.isLoading,
         handleSendMessage,
+        handleAbortStream,
         isError: sendMessageMutation.isError || threadMessagesQuery.isError,
         error: sendMessageMutation.error || threadMessagesQuery.error,
     };

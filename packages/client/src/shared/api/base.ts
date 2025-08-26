@@ -37,12 +37,17 @@ export abstract class BaseApiClient {
         return response.json();
     }
 
-    protected async streamRequest(endpoint: string, options: RequestInit = {}): Promise<Response> {
+    protected async streamRequest(
+        endpoint: string,
+        options: RequestInit = {},
+        signal?: AbortSignal
+    ): Promise<Response> {
         const headers = await this.getAuthHeaders();
 
         const response = await fetch(`${this.apiBase}${endpoint}`, {
             ...options,
             headers: { ...headers, ...options.headers },
+            signal,
         });
 
         if (!response.ok) {

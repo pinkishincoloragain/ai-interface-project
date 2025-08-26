@@ -32,9 +32,19 @@ export interface StreamingHandlerOptions<T> {
     onComplete?: () => void;
 
     /**
+     * 중단 시 콜백
+     */
+    onAborted?: () => void;
+
+    /**
      * 메시지 파서
      */
     parseData: (json: string) => T;
+
+    /**
+     * AbortSignal for cancelling the stream
+     */
+    abortSignal?: AbortSignal;
 }
 
 /**
@@ -52,9 +62,24 @@ export class SSEStreamingHandler<T> {
     private decoder = new TextDecoder();
     private buffer = '';
     private isComplete = false;
+    private isAborted = false;
     private timeoutId: NodeJS.Timeout | null = null;
 
-    constructor(private options: StreamingHandlerOptions<T>) {}
+    constructor(private options: StreamingHandlerOptions<T>) {
+        // AbortSignal 처리
+        if (this.options.abortSignal) {
+            this.options.abortSignal.addEventListener('abort', this.handleAbort);
+        }
+    }
+
+    private handleAbort = () => {
+        if (this.isComplete || this.isAborted) return;
+
+        this.isAborted = true;
+        console.log('[SSEStreamingHandler] 스트림이 중단되었습니다');
+        this.cleanup();
+        this.options.onAborted?.();
+    };
 
     /**
      * SSE 스트림 처리 시작
@@ -63,6 +88,11 @@ export class SSEStreamingHandler<T> {
      * @returns Promise<string | undefined> - 완료 시 스레드 ID 반환
      */
     async handleStream(response: Response): Promise<string | undefined> {
+        // AbortSignal이 이미 중단되었는지 확인
+        if (this.options.abortSignal?.aborted) {
+            throw new Error('Request was aborted');
+        }
+
         // TODO: Response 유효성 검증 추가 (상태 코드, 헤더 확인)
         if (!response.body) {
             throw new Error('Response body is null');
@@ -118,8 +148,20 @@ export class SSEStreamingHandler<T> {
         try {
             // eslint-disable-next-line no-constant-condition
             while (true) {
+                // 중단 상태 확인
+                if (this.isAborted || this.options.abortSignal?.aborted) {
+                    resolve(undefined);
+                    return;
+                }
+
                 const { done, value } = await this.reader.read();
                 if (done) break;
+
+                // 중단 상태 재확인 (비동기 읽기 후)
+                if (this.isAborted || this.options.abortSignal?.aborted) {
+                    resolve(undefined);
+                    return;
+                }
 
                 // 텍스트 디코딩 및 라인 파싱
                 this.buffer += this.decoder.decode(value, { stream: true });
@@ -128,6 +170,12 @@ export class SSEStreamingHandler<T> {
 
                 // 각 라인 처리
                 for (const line of lines) {
+                    // 라인 처리 중에도 중단 상태 확인
+                    if (this.isAborted || this.options.abortSignal?.aborted) {
+                        resolve(undefined);
+                        return;
+                    }
+
                     const result = this.processSSELine(line);
 
                     if (result?.type === 'done') {
@@ -140,6 +188,11 @@ export class SSEStreamingHandler<T> {
                 }
             }
         } catch (error) {
+            // AbortError는 정상적인 중단으로 처리
+            if (error instanceof Error && error.name === 'AbortError') {
+                resolve(undefined);
+                return;
+            }
             this.handleError(reject, error as Error);
         }
     }
@@ -231,6 +284,11 @@ export class SSEStreamingHandler<T> {
             this.reader = null;
         }
 
+        // AbortSignal 이벤트 리스너 정리
+        if (this.options.abortSignal) {
+            this.options.abortSignal.removeEventListener('abort', this.handleAbort);
+        }
+
         this.buffer = '';
     }
 
@@ -243,8 +301,11 @@ export class SSEStreamingHandler<T> {
      * 3. 재시작 지점 마킹
      */
     cancel(): void {
-        this.isComplete = true;
+        if (this.isComplete || this.isAborted) return;
+
+        this.isAborted = true;
         this.cleanup();
+        console.log('[SSEStreamingHandler] 스트림이 수동으로 중단되었습니다');
     }
 }
 

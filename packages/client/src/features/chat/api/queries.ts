@@ -18,11 +18,16 @@ export const useSendMessageMutation = () => {
     const removeMessage = useChatStore((state) => state.removeMessage);
     const setCurrentThreadId = useChatStore((state) => state.setCurrentThreadId);
     const setLoading = useChatStore((state) => state.setLoading);
+    const setAbortController = useChatStore((state) => state.setAbortController);
     const currentThreadId = useChatStore((state) => state.currentThreadId);
 
     return useMutation({
         mutationFn: async ({ content, threadId }: SendMessageParams) => {
             setLoading(true);
+
+            // 새로운 AbortController 생성
+            const abortController = new AbortController();
+            setAbortController(abortController);
 
             // Create user message
             const userMessage = MessageFactory.createUserMessage(content);
@@ -36,8 +41,12 @@ export const useSendMessageMutation = () => {
                     userMessage,
                 ];
 
-                // Send request
-                const response = await chatApi.sendMessage(currentMessages, threadId || currentThreadId);
+                // Send request with AbortSignal
+                const response = await chatApi.sendMessage(
+                    currentMessages,
+                    threadId || currentThreadId,
+                    abortController.signal
+                );
 
                 // Create placeholder assistant message
                 const assistantPlaceholder = MessageFactory.createAssistantMessage('');
@@ -56,6 +65,7 @@ export const useSendMessageMutation = () => {
                 let responseThreadId = threadId || currentThreadId;
                 const streamingHandler = createStreamingHandler({
                     timeout: 60000,
+                    abortSignal: abortController.signal,
 
                     parseData: (json) => JSON.parse(json) as SSEMessageData,
 
@@ -115,6 +125,8 @@ export const useSendMessageMutation = () => {
                     // 완료 처리
                     onComplete: () => {
                         setLoading(false);
+                        setAbortController(undefined);
+
                         if (assistantMessageId) {
                             updateMessage(assistantMessageId, { status: 'success' });
                         }
@@ -125,9 +137,22 @@ export const useSendMessageMutation = () => {
                         }
                     },
 
+                    // 중단 처리
+                    onAborted: () => {
+                        setLoading(false);
+                        setAbortController(undefined);
+
+                        if (assistantMessageId) {
+                            updateMessage(assistantMessageId, { status: 'error' });
+                        }
+                        console.log('스트리밍이 사용자에 의해 중단되었습니다');
+                    },
+
                     // 에러 처리
                     onError: (error) => {
                         setLoading(false);
+                        setAbortController(undefined);
+
                         if (assistantMessageId) {
                             updateMessage(assistantMessageId, { status: 'error' });
                         }
@@ -138,6 +163,8 @@ export const useSendMessageMutation = () => {
                 return streamingHandler.handleStream(response);
             } catch (error) {
                 setLoading(false);
+                setAbortController(undefined);
+
                 // If we have an assistant message placeholder, mark it as error
                 const currentMessages = useChatStore.getState().messages;
                 const assistantMessage = currentMessages.find((m) => m.role === 'assistant' && m.status === 'sending');
@@ -150,6 +177,7 @@ export const useSendMessageMutation = () => {
         onError: (error) => {
             console.error('Failed to send message:', error);
             setLoading(false);
+            setAbortController(undefined);
         },
     });
 };
