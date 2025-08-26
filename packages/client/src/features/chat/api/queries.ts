@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { chatApi } from './chatApi';
 import { useChatStore } from '../model/store';
@@ -18,10 +19,19 @@ export const useSendMessageMutation = () => {
     const removeMessage = useChatStore((state) => state.removeMessage);
     const setCurrentThreadId = useChatStore((state) => state.setCurrentThreadId);
     const setLoading = useChatStore((state) => state.setLoading);
-    const setAbortController = useChatStore((state) => state.setAbortController);
     const currentThreadId = useChatStore((state) => state.currentThreadId);
 
-    return useMutation({
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    function getAbortController() {
+        return abortControllerRef.current;
+    }
+
+    function setAbortController(controller: AbortController | null) {
+        abortControllerRef.current = controller;
+    }
+
+    const sendMessageMutation = useMutation({
         mutationFn: async ({ content, threadId }: SendMessageParams) => {
             setLoading(true);
 
@@ -125,7 +135,7 @@ export const useSendMessageMutation = () => {
                     // 완료 처리
                     onComplete: () => {
                         setLoading(false);
-                        setAbortController(undefined);
+                        setAbortController(null);
 
                         if (assistantMessageId) {
                             updateMessage(assistantMessageId, { status: 'success' });
@@ -140,7 +150,7 @@ export const useSendMessageMutation = () => {
                     // 중단 처리
                     onAborted: () => {
                         setLoading(false);
-                        setAbortController(undefined);
+                        setAbortController(null);
 
                         if (assistantMessageId) {
                             updateMessage(assistantMessageId, { status: 'error' });
@@ -151,7 +161,7 @@ export const useSendMessageMutation = () => {
                     // 에러 처리
                     onError: (error) => {
                         setLoading(false);
-                        setAbortController(undefined);
+                        setAbortController(null);
 
                         if (assistantMessageId) {
                             updateMessage(assistantMessageId, { status: 'error' });
@@ -163,7 +173,7 @@ export const useSendMessageMutation = () => {
                 return streamingHandler.handleStream(response);
             } catch (error) {
                 setLoading(false);
-                setAbortController(undefined);
+                setAbortController(null);
 
                 // If we have an assistant message placeholder, mark it as error
                 const currentMessages = useChatStore.getState().messages;
@@ -177,7 +187,12 @@ export const useSendMessageMutation = () => {
         onError: (error) => {
             console.error('Failed to send message:', error);
             setLoading(false);
-            setAbortController(undefined);
+            setAbortController(null);
         },
     });
+
+    return {
+        sendMessageMutation,
+        getAbortController,
+    };
 };

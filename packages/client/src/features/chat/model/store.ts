@@ -6,7 +6,6 @@ export interface ChatState {
     messages: ChatMessage[];
     currentThreadId?: string;
     loading: boolean;
-    abortController?: AbortController;
 
     // Actions
     setMessages: (messages: ChatMessage[]) => void;
@@ -15,7 +14,6 @@ export interface ChatState {
     removeMessage: (messageId: string) => void;
     setCurrentThreadId: (threadId?: string) => void;
     setLoading: (loading: boolean) => void;
-    setAbortController: (controller?: AbortController) => void;
     clearMessages: () => void;
 }
 
@@ -44,8 +42,6 @@ export const useChatStore = create<ChatState>()(
             setCurrentThreadId: (threadId) => set({ currentThreadId: threadId }),
 
             setLoading: (loading) => set({ loading }),
-
-            setAbortController: (controller) => set({ abortController: controller }),
 
             clearMessages: () => set({ messages: [] }),
         }),
