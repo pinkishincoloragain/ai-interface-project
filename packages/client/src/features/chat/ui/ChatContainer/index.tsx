@@ -8,13 +8,10 @@ interface ChatContainerProps {
 }
 
 const ChatContainer: React.FC<ChatContainerProps> = ({ threadId, onThreadCreated }) => {
-    const { messages, loading, handleSendMessage, handleAbortStream } = useChatViewModel(threadId);
+    const { messages, loading, handleSendMessage, handleAbortStream } = useChatViewModel(threadId, onThreadCreated);
 
     const onSendMessage = async (content: string) => {
-        const newThreadId = await handleSendMessage(content);
-        if (!threadId && newThreadId && onThreadCreated) {
-            onThreadCreated(newThreadId);
-        }
+        await handleSendMessage(content);
     };
 
     return (

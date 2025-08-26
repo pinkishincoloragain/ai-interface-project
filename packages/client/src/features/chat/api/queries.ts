@@ -12,7 +12,7 @@ export interface SendMessageParams {
     threadId?: string;
 }
 
-export const useSendMessageMutation = () => {
+export const useSendMessageMutation = ({ onThreadCreated }: { onThreadCreated?: (threadId: string) => void }) => {
     const queryClient = useQueryClient();
     const addMessage = useChatStore((state) => state.addMessage);
     const updateMessage = useChatStore((state) => state.updateMessage);
@@ -84,10 +84,14 @@ export const useSendMessageMutation = () => {
                         if (event.type === 'message' && event.data) {
                             const messageData = event.data;
 
+                            if (!threadId && !responseThreadId && messageData.conversationId) {
+                                onThreadCreated?.(messageData.conversationId);
+                                responseThreadId = messageData.conversationId;
+                            }
+
                             // 스레드 ID 업데이트
                             if (messageData.conversationId && !currentThreadId) {
                                 setCurrentThreadId(messageData.conversationId);
-                                responseThreadId = messageData.conversationId;
                             }
 
                             // 메시지 ID 동기화

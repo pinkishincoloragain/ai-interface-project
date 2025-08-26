@@ -3,10 +3,10 @@ import { useChatStore } from '@/features';
 import { useSendMessageMutation } from '../api';
 import { useThreadMessagesQuery, useThreadsQuery } from '@/features/thread';
 
-export const useChatViewModel = (threadId?: string) => {
+export const useChatViewModel = (threadId?: string, onThreadCreated?: (threadId: string) => void) => {
     const { messages, currentThreadId, loading, setCurrentThreadId, clearMessages } = useChatStore();
 
-    const { sendMessageMutation, getAbortController } = useSendMessageMutation();
+    const { sendMessageMutation, getAbortController } = useSendMessageMutation({ onThreadCreated });
     const threadMessagesQuery = useThreadMessagesQuery(threadId);
     useThreadsQuery();
 
