@@ -1,4 +1,4 @@
-import { fromPromise, fromCallback } from 'xstate';
+import { fromCallback, fromPromise } from 'xstate';
 import type { StreamingContext, StreamingEvent } from './streamingMachine';
 
 export const streamingServices = {

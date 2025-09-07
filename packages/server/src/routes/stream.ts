@@ -48,10 +48,13 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
 
             // If no conversation ID, create a new thread
             if (!convoId) {
+                const firstUserMessage = messages.find((m) => m.role === 'user');
+                const threadTitle = firstUserMessage?.content?.slice(0, 50) || 'New Chat';
+
                 const { data: newThread, error: threadError } = await userClient
                     .from('threads')
                     .insert({
-                        title: 'New Chat',
+                        title: threadTitle,
                         user_id: user.id,
                     })
                     .select()
@@ -105,6 +108,49 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
             }
 
             let assistantResponse = '';
+            let responseSaved = false;
+            let isAborted = false;
+
+            // Set up abort handler to save partial content
+            const savePartialResponse = async () => {
+                if (assistantResponse.trim() && !responseSaved) {
+                    try {
+                        await userClient.from('messages').upsert({
+                            id: messageId,
+                            thread_id: convoId,
+                            user_id: user.id,
+                            role: 'assistant',
+                            content: assistantResponse,
+                        });
+
+                        // Update thread's updated_at timestamp
+                        await userClient
+                            .from('threads')
+                            .update({ updated_at: new Date().toISOString() })
+                            .eq('id', convoId);
+
+                        responseSaved = true;
+                        console.log(
+                            `Saved partial response for message ${messageId}: ${assistantResponse.length} characters`
+                        );
+                    } catch (error) {
+                        console.error('Failed to save partial response on abort:', error);
+                    }
+                }
+            };
+
+            // Set up abort signal handler
+            request.raw.on('close', async () => {
+                console.log(`Client disconnected for message ${messageId}, saving partial response`);
+                isAborted = true;
+                await savePartialResponse();
+            });
+
+            request.raw.on('error', async () => {
+                console.log(`Client error for message ${messageId}, saving partial response`);
+                isAborted = true;
+                await savePartialResponse();
+            });
 
             // 응답 헤더 설정 (SSE 형식)
             reply.raw.writeHead(200, {
@@ -126,6 +172,7 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
                 // 초기 경고 메시지
                 const warningMessage = '⚠️ OpenAI API가 설정되지 않았습니다.\n\n';
                 for (const char of warningMessage) {
+                    if (isAborted) break;
                     assistantResponse += char;
                     const chunk: ChatStreamChunk = {
                         id: messageId,
@@ -140,6 +187,7 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
 
                 // Fallback 응답 스트리밍
                 for await (const mockChunk of fallbackService.createMockStreamingCompletion(fallbackMessages)) {
+                    if (isAborted) break;
                     assistantResponse += mockChunk.content;
                     const streamChunk: ChatStreamChunk = {
                         id: messageId,
@@ -155,6 +203,7 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
                 const setupMessage =
                     '\n\n💡 실제 AI 응답을 받으려면:\n1. .env 파일에 OPENAI_API_KEY를 설정하세요\n2. 서버를 재시작하세요';
                 for (const char of setupMessage) {
+                    if (isAborted) break;
                     assistantResponse += char;
                     const chunk: ChatStreamChunk = {
                         id: messageId,
@@ -188,6 +237,8 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
 
                 // OpenAI 스트림 처리
                 for await (const chunk of stream) {
+                    if (isAborted) break;
+
                     const content = chunk.choices[0]?.delta?.content || '';
                     const finishReason = chunk.choices[0]?.finish_reason;
 
@@ -214,40 +265,19 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
 
             // Save assistant response to both Supabase and in-memory store
             if (assistantResponse.trim()) {
-                // Save to Supabase
-                try {
-                    const { data: savedAssistantMessage, error } = await userClient
-                        .from('messages')
-                        .insert({
-                            thread_id: convoId,
-                            user_id: user.id,
-                            role: 'assistant',
-                            content: assistantResponse,
-                        })
-                        .select()
-                        .single();
-
-                    if (error) {
-                        console.error('Failed to save assistant message:', error);
-                    } else {
-                        // Update thread's updated_at timestamp
-                        await userClient
-                            .from('threads')
-                            .update({ updated_at: new Date().toISOString() })
-                            .eq('id', convoId);
-                    }
-                } catch (error) {
-                    console.error('Error saving assistant message:', error);
-                }
+                // Save to Supabase (use the same function to avoid duplication)
+                await savePartialResponse();
 
                 // Also save to in-memory store for legacy compatibility
-                const assistantMessage: ChatMessage = {
-                    id: messageId,
-                    role: 'assistant',
-                    content: assistantResponse,
-                    createdAt: new Date().toISOString(),
-                };
-                threadManager.addMessageToThread(convoId!, assistantMessage);
+                if (responseSaved) {
+                    const assistantMessage: ChatMessage = {
+                        id: messageId,
+                        role: 'assistant',
+                        content: assistantResponse,
+                        createdAt: new Date().toISOString(),
+                    };
+                    threadManager.addMessageToThread(convoId!, assistantMessage);
+                }
             }
 
             // SSE 스트림 종료 신호

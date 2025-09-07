@@ -41,9 +41,15 @@ export function registerChatRoutes(fastify: FastifyInstance) {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
 
+            // Get threads with message counts
             const { data: threads, error } = await userClient
                 .from('threads')
-                .select('*')
+                .select(
+                    `
+                    *,
+                    messages:messages(id, content, role, created_at)
+                `
+                )
                 .eq('user_id', user.id)
                 .order('updated_at', { ascending: false });
 
@@ -52,7 +58,15 @@ export function registerChatRoutes(fastify: FastifyInstance) {
                 return reply.code(500).send({ error: 'Failed to fetch threads' });
             }
 
-            return reply.send({ threads: threads || [] });
+            // Format threads with message counts and ensure proper dates
+            const formattedThreads = (threads || []).map((thread) => ({
+                ...thread,
+                messages: thread.messages || [],
+                createdAt: thread.created_at || new Date().toISOString(),
+                updatedAt: thread.updated_at || thread.created_at || new Date().toISOString(),
+            }));
+
+            return reply.send({ threads: formattedThreads });
         } catch (err) {
             fastify.log.error(err);
             return reply.code(500).send({ error: 'Failed to get threads' });
@@ -243,6 +257,68 @@ export function registerChatRoutes(fastify: FastifyInstance) {
         }
     });
 
+    // POST save partial message (for aborted/stopped messages)
+    fastify.post<{
+        Body: {
+            threadId: string;
+            messageId: string;
+            content: string;
+            role: 'user' | 'assistant';
+        };
+    }>('/api/messages/save', async (request, reply) => {
+        try {
+            const { threadId, messageId, content, role } = request.body;
+
+            // Get authenticated user
+            let user, userClient;
+            try {
+                const auth = await getUserFromRequest(request);
+                user = auth.user;
+                userClient = auth.userClient;
+            } catch (error) {
+                return reply.code(401).send({ error: 'Unauthorized' });
+            }
+
+            // Verify thread belongs to user
+            const { data: thread, error: threadError } = await userClient
+                .from('threads')
+                .select('id')
+                .eq('id', threadId)
+                .eq('user_id', user.id)
+                .single();
+
+            if (threadError || !thread) {
+                return reply.code(404).send({ error: 'Thread not found' });
+            }
+
+            // Save or update message
+            const { data: savedMessage, error } = await userClient
+                .from('messages')
+                .upsert({
+                    id: messageId,
+                    thread_id: threadId,
+                    user_id: user.id,
+                    role,
+                    content,
+                })
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Failed to save message:', error);
+                return reply.code(500).send({ error: 'Failed to save message' });
+            }
+
+            // Update thread's updated_at timestamp
+            await userClient.from('threads').update({ updated_at: new Date().toISOString() }).eq('id', threadId);
+
+            return reply.send({ success: true, message: savedMessage });
+        } catch (err) {
+            fastify.log.error(err);
+            return reply.code(500).send({ error: 'Failed to save message' });
+        }
+    });
+
     // POST send message to thread
     fastify.post<{ Body: ChatCompletionRequest & { threadId?: string } }>('/api/chat', async (request, reply) => {
         try {
@@ -263,10 +339,12 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             // Create new thread if none provided
             if (!currentThreadId) {
                 const userMessage = messages[messages.length - 1];
+                const threadTitle = userMessage?.content?.slice(0, 50) || 'New Chat';
+
                 const { data: newThread, error: threadError } = await userClient
                     .from('threads')
                     .insert({
-                        title: userMessage?.content?.slice(0, 50) || 'New Chat',
+                        title: threadTitle,
                         user_id: user.id,
                     })
                     .select()

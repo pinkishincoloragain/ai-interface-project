@@ -1,12 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-
-export interface Thread {
-    id: string;
-    title: string;
-    createdAt: string;
-    updatedAt: string;
-}
+import type { Thread } from '@/entities/thread';
 
 export interface ThreadState {
     threads: Thread[];

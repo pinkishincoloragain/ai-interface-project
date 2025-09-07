@@ -9,6 +9,7 @@ export interface ChatCompletionResponse {
 
 export const chatApi = {
     sendMessage: chatApiClient.sendMessage.bind(chatApiClient),
+    saveMessage: chatApiClient.saveMessage.bind(chatApiClient),
 };
 
 // Legacy support

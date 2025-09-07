@@ -168,6 +168,12 @@ export class SSEReader {
         if (!this.reader) return;
 
         while (!this.isComplete) {
+            // Check abort signal before each read
+            if (this.options.abortSignal?.aborted) {
+                this.handleAbort();
+                return;
+            }
+
             const { done, value } = await this.reader.read();
 
             if (done) break;
@@ -317,6 +323,12 @@ export class SSEReader {
 
         this.isComplete = true;
         this.completionHandled = true;
+
+        // Process any remaining content in buffer before cleanup
+        if (this.buffer.trim()) {
+            this.processLines();
+        }
+
         this.cleanup();
         this.handleError(abortError);
     }
@@ -354,6 +366,12 @@ export class SSEReader {
         }
 
         if (this.reader) {
+            try {
+                this.reader.cancel();
+            } catch {
+                // Reader might already be closed, ignore errors
+                // This is expected when stream is already closed
+            }
             this.reader.releaseLock();
             this.reader = null;
         }

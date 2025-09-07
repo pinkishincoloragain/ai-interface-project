@@ -1,6 +1,8 @@
 import React, { useCallback } from 'react';
 import { MessageList } from '@/features/message';
-import { InputBoxWithCompose, useChatViewModel } from '@/features/chat';
+import { InputBoxWithCompose } from '@/features/chat';
+import { useChat, useNavigationAbort } from '../../hooks';
+import { StreamingIndicator } from '../components';
 
 interface ChatContainerProps {
     threadId?: string;
@@ -8,7 +10,10 @@ interface ChatContainerProps {
 }
 
 const ChatContainer: React.FC<ChatContainerProps> = React.memo(({ threadId, onThreadCreated }) => {
-    const { messages, loading, handleSendMessage } = useChatViewModel(threadId);
+    const { messages, loading, handleSendMessage, stopStreaming } = useChat(threadId);
+
+    // Ensure cleanup on component unmount or navigation
+    useNavigationAbort();
 
     const onSendMessage = useCallback(
         async (content: string) => {
@@ -31,8 +36,15 @@ const ChatContainer: React.FC<ChatContainerProps> = React.memo(({ threadId, onTh
             <div className="flex-1 min-h-0 overflow-hidden">
                 <MessageList messages={messages} />
             </div>
-            <div className="border-t border-gray-700 p-4 flex-shrink-0">
-                <InputBoxWithCompose onSendMessage={onSendMessage} disabled={loading} />
+            <div className="border-t border-gray-700 flex-shrink-0">
+                <StreamingIndicator isStreaming={loading} className="px-4 pt-2" />
+                <div className="p-4">
+                    <InputBoxWithCompose
+                        onSendMessage={onSendMessage}
+                        disabled={loading}
+                        onStop={loading ? stopStreaming : undefined}
+                    />
+                </div>
             </div>
         </div>
     );

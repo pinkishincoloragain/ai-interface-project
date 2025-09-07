@@ -4,20 +4,39 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/shared/lib/supabase';
 import { useChatStore } from '@/features/chat/model/store';
 import { useThreadStore } from '@/features/thread/model/store';
+import { useLoginState } from './store';
 
 export function useAuth() {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [previousUserId, setPreviousUserId] = useState<string | null>(null);
     const queryClient = useQueryClient();
+    const { isLoggedIn, hasAttemptedAutoLogin, setLoggedIn, setAttemptedAutoLogin, reset } = useLoginState();
 
     useEffect(() => {
-        // Get initial session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null);
-            setPreviousUserId(session?.user?.id ?? null);
+        // Only auto-login if user hasn't attempted auto-login and is marked as logged in
+        if (!hasAttemptedAutoLogin) {
+            setAttemptedAutoLogin(true);
+            if (isLoggedIn) {
+                // Get initial session only if user should be logged in
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    if (session?.user) {
+                        setUser(session.user);
+                        setPreviousUserId(session.user.id);
+                    } else {
+                        // No valid session, reset login state
+                        setLoggedIn(false);
+                    }
+                    setLoading(false);
+                });
+            } else {
+                // User should start logged out
+                setLoading(false);
+            }
+        } else {
+            // Already attempted auto-login
             setLoading(false);
-        });
+        }
 
         // Listen for auth changes
         const {
@@ -38,6 +57,11 @@ export function useAuth() {
 
                 // Clear React Query cache
                 queryClient.clear();
+
+                // Reset login state on sign out
+                if (event === 'SIGNED_OUT') {
+                    reset();
+                }
             }
 
             // Update previous user ID
@@ -48,13 +72,18 @@ export function useAuth() {
         });
 
         return () => subscription.unsubscribe();
-    }, [previousUserId, queryClient]);
+    }, [previousUserId, queryClient, hasAttemptedAutoLogin, isLoggedIn, setAttemptedAutoLogin, setLoggedIn, reset]);
 
     const signIn = async (email: string, password: string) => {
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
+
+        if (data.user && !error) {
+            setLoggedIn(true);
+        }
+
         return { data, error };
     };
 
@@ -63,6 +92,11 @@ export function useAuth() {
             email,
             password,
         });
+
+        if (data.user && !error) {
+            setLoggedIn(true);
+        }
+
         return { data, error };
     };
 

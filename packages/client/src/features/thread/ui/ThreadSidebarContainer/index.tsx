@@ -43,7 +43,7 @@ export const ThreadSidebarContainer: React.FC<ThreadSidebarContainerProps> = ({
     // Transform threads to match the expected interface
     const transformedThreads: ThreadWithMessages[] = threads.map((thread) => ({
         ...thread,
-        messages: [], // Messages count can be fetched separately if needed
+        messages: thread.messages || [], // Use actual messages from the thread
     }));
 
     if (error) {
