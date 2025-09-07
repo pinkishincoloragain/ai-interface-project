@@ -19,7 +19,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages }) => {
         });
     };
 
-    const handleScroll = () => {
+    const handleScroll = React.useCallback(() => {
         if (!scrollContainerRef.current) return;
 
         const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
@@ -27,7 +27,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages }) => {
 
         setUserScrolled(!isNearBottom);
         setShowScrollButton(!isNearBottom && messages.length > 0);
-    };
+    }, [messages.length]);
 
     const throttledHandleScroll = React.useCallback(() => {
         let ticking = false;
@@ -40,7 +40,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages }) => {
                 ticking = true;
             }
         };
-    }, [])();
+    }, [handleScroll])();
 
     // Auto-scroll logic: only scroll automatically if user hasn't manually scrolled up
     useEffect(() => {

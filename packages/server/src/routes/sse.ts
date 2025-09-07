@@ -1,9 +1,9 @@
 import { FastifyInstance } from 'fastify';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatCompletionRequest } from '../../../shared/src/types/chat';
-import { openaiService } from '../services/openai';
-import { fallbackService } from '../services/fallback';
-import { threadManager } from '../services/threadManager';
+import { openaiService } from '../services/openai.js';
+import { fallbackService } from '../services/fallback.js';
+import { threadManager } from '../services/threadManager.js';
 
 export function registerSSERoutes(fastify: FastifyInstance) {
     // SSE 라우트
@@ -21,8 +21,8 @@ export function registerSSERoutes(fastify: FastifyInstance) {
     // SSE를 통한 채팅 응답
     fastify.post<{ Body: ChatCompletionRequest }>('/api/chat/sse', async (request, reply) => {
         try {
-            const { messages, conversationId } = request.body;
-            const messageId = uuidv4();
+            const { messages, conversationId, messageId: providedMessageId } = request.body;
+            const messageId = providedMessageId || uuidv4();
             let currentThreadId = conversationId;
 
             // 헤더 설정

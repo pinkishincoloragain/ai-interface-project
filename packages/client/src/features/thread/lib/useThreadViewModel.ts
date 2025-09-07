@@ -12,8 +12,9 @@ export const useThreadViewModel = () => {
     const createThread = async (title?: string) => {
         try {
             const result = await createThreadMutation.mutateAsync({ title: title || 'New Chat' });
-            setSelectedThreadId((result as any).thread.id);
-            return (result as any).thread;
+            const threadData = result as { thread: import('@/entities/thread/model/types').Thread };
+            setSelectedThreadId(threadData.thread.id);
+            return threadData.thread;
         } catch (error) {
             console.error('Failed to create thread:', error);
             return null;

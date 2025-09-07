@@ -18,6 +18,8 @@ interface ChatMessage {
 
 interface StreamRequest {
     messages: ChatMessage[];
+    threadId?: string;
+    messageId?: string;
     model?: string;
     temperature?: number;
     max_tokens?: number;
@@ -68,7 +70,33 @@ serve(async (req) => {
 
         if (req.method === 'POST') {
             const body: StreamRequest = await req.json();
-            const { messages, model = 'gpt-4o-mini', temperature = 0.7, max_tokens = 1000 } = body;
+            const { messages, threadId, messageId, model = 'gpt-4o-mini', temperature = 0.7, max_tokens = 1000 } = body;
+
+            // Save user message to database if threadId is provided
+            const currentThreadId = threadId;
+            if (messages.length > 0 && currentThreadId) {
+                const lastMessage = messages[messages.length - 1];
+                if (lastMessage.role === 'user') {
+                    try {
+                        const { data: savedUserMessage, error } = await supabaseClient
+                            .from('messages')
+                            .insert({
+                                thread_id: currentThreadId,
+                                user_id: user.id,
+                                role: lastMessage.role,
+                                content: lastMessage.content,
+                            })
+                            .select()
+                            .single();
+
+                        if (error) {
+                            console.error('Failed to save user message:', error);
+                        }
+                    } catch (error) {
+                        console.error('Error saving user message:', error);
+                    }
+                }
+            }
 
             // Create streaming chat completion
             const stream = await openai.chat.completions.create({
@@ -79,6 +107,9 @@ serve(async (req) => {
                 stream: true,
             });
 
+            // Track assistant message content for database persistence
+            let assistantContent = '';
+
             // Create a ReadableStream to handle the OpenAI stream
             const readableStream = new ReadableStream({
                 async start(controller) {
@@ -86,17 +117,50 @@ serve(async (req) => {
                         for await (const chunk of stream) {
                             const delta = chunk.choices[0]?.delta;
                             if (delta?.content) {
+                                assistantContent += delta.content;
                                 const data = `data: ${JSON.stringify({
                                     type: 'content',
                                     content: delta.content,
+                                    messageId: messageId,
+                                    conversationId: currentThreadId,
                                     user_id: user.id,
                                 })}\n\n`;
                                 controller.enqueue(new TextEncoder().encode(data));
                             }
 
                             if (chunk.choices[0]?.finish_reason === 'stop') {
+                                // Save assistant message to database
+                                if (currentThreadId && assistantContent) {
+                                    try {
+                                        const { data: savedAssistantMessage, error } = await supabaseClient
+                                            .from('messages')
+                                            .insert({
+                                                thread_id: currentThreadId,
+                                                user_id: user.id,
+                                                role: 'assistant',
+                                                content: assistantContent,
+                                            })
+                                            .select()
+                                            .single();
+
+                                        if (error) {
+                                            console.error('Failed to save assistant message:', error);
+                                        }
+
+                                        // Update thread's updated_at timestamp
+                                        await supabaseClient
+                                            .from('threads')
+                                            .update({ updated_at: new Date().toISOString() })
+                                            .eq('id', currentThreadId);
+                                    } catch (error) {
+                                        console.error('Error saving assistant message:', error);
+                                    }
+                                }
+
                                 const data = `data: ${JSON.stringify({
                                     type: 'done',
+                                    messageId: messageId,
+                                    conversationId: currentThreadId,
                                     user_id: user.id,
                                 })}\n\n`;
                                 controller.enqueue(new TextEncoder().encode(data));

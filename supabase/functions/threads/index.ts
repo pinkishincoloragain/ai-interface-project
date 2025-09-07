@@ -7,13 +7,7 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
 };
 
-interface Thread {
-    id: string;
-    title: string;
-    created_at: string;
-    updated_at: string;
-    user_id: string;
-}
+// Thread interface removed - not used in the current implementation
 
 interface CreateThreadRequest {
     title: string;
@@ -82,23 +76,71 @@ serve(async (req) => {
 
         // GET /threads/:id - Get specific thread
         if (req.method === 'GET' && threadId) {
-            const { data: thread, error } = await supabaseClient
-                .from('threads')
-                .select('*')
-                .eq('id', threadId)
-                .eq('user_id', user.id)
-                .single();
+            // Check if this is a request for messages
+            const isMessagesRequest = url.pathname.endsWith('/messages');
 
-            if (error || !thread) {
-                return new Response(JSON.stringify({ error: 'Thread not found' }), {
-                    status: 404,
+            if (isMessagesRequest) {
+                // First verify the thread belongs to the user
+                const { data: thread, error: threadError } = await supabaseClient
+                    .from('threads')
+                    .select('*')
+                    .eq('id', threadId)
+                    .eq('user_id', user.id)
+                    .single();
+
+                if (threadError || !thread) {
+                    return new Response(JSON.stringify({ error: 'Thread not found' }), {
+                        status: 404,
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    });
+                }
+
+                // Get messages for the thread
+                const { data: messages, error: messagesError } = await supabaseClient
+                    .from('messages')
+                    .select('*')
+                    .eq('thread_id', threadId)
+                    .order('created_at', { ascending: true });
+
+                if (messagesError) {
+                    console.error('Database error:', messagesError);
+                    return new Response(JSON.stringify({ error: 'Failed to fetch messages' }), {
+                        status: 500,
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    });
+                }
+
+                return new Response(
+                    JSON.stringify({
+                        thread: {
+                            ...thread,
+                            messages: messages || [],
+                        },
+                    }),
+                    {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    }
+                );
+            } else {
+                // Regular thread request without messages
+                const { data: thread, error } = await supabaseClient
+                    .from('threads')
+                    .select('*')
+                    .eq('id', threadId)
+                    .eq('user_id', user.id)
+                    .single();
+
+                if (error || !thread) {
+                    return new Response(JSON.stringify({ error: 'Thread not found' }), {
+                        status: 404,
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    });
+                }
+
+                return new Response(JSON.stringify({ thread }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 });
             }
-
-            return new Response(JSON.stringify({ thread }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
         }
 
         // POST /threads - Create new thread

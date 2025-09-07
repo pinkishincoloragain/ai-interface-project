@@ -77,6 +77,7 @@ export class SSEReader {
     private buffer = '';
     private timeoutId: NodeJS.Timeout | null = null;
     private isComplete = false;
+    private completionHandled = false;
     private handlers: SSEReaderHandlers = {};
 
     constructor(private options: SSEReaderOptions = {}) {}
@@ -115,6 +116,7 @@ export class SSEReader {
      */
     cancel(): void {
         this.isComplete = true;
+        this.completionHandled = true;
         this.cleanup();
     }
 
@@ -251,6 +253,7 @@ export class SSEReader {
         // Handle special termination signal
         if (value === '[DONE]') {
             this.isComplete = true;
+            this.handleComplete();
             return;
         }
 
@@ -277,8 +280,9 @@ export class SSEReader {
      * Handles successful completion
      */
     private handleComplete(): void {
-        if (this.isComplete) return;
+        if (this.completionHandled) return;
 
+        this.completionHandled = true;
         this.isComplete = true;
         this.cleanup();
 
@@ -297,6 +301,7 @@ export class SSEReader {
         );
 
         this.isComplete = true;
+        this.completionHandled = true;
         this.cleanup();
 
         this.handlers.onTimeout?.();
@@ -311,6 +316,7 @@ export class SSEReader {
         const abortError = createEnhancedError(ErrorType.ABORT_ERROR, 'SSE stream was aborted', { recoverable: false });
 
         this.isComplete = true;
+        this.completionHandled = true;
         this.cleanup();
         this.handleError(abortError);
     }

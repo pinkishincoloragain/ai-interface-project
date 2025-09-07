@@ -5,7 +5,7 @@ import type { SSEMessageData } from '@/shared/api';
  */
 export interface StreamingEvent {
     type: 'message' | 'error' | 'done' | 'timeout';
-    data?: any;
+    data?: SSEMessageData | string;
     messageId?: string;
     content?: string;
     conversationId?: string;
@@ -97,7 +97,7 @@ export class SSEStreamingHandler {
      * - 메시지 길이에 따른 적응형 타임아웃
      * - 네트워크 상태에 따른 타임아웃 조정
      */
-    private setupTimeout(reject: (reason?: any) => void): void {
+    private setupTimeout(reject: (reason?: Error) => void): void {
         const timeout = this.options.timeout || 30000;
 
         this.timeoutId = setTimeout(() => {
@@ -123,7 +123,7 @@ export class SSEStreamingHandler {
      */
     private async processStreamChunks(
         resolve: (value: string | undefined) => void,
-        reject: (reason?: any) => void,
+        reject: (reason?: Error) => void,
         responseThreadId?: string
     ): Promise<void> {
         if (!this.reader) return;
@@ -147,7 +147,8 @@ export class SSEStreamingHandler {
                         this.handleComplete(resolve, result.conversationId || responseThreadId);
                         return;
                     } else if (result?.type === 'error') {
-                        this.handleError(reject, new Error(result.data));
+                        const errorMessage = typeof result.data === 'string' ? result.data : 'SSE Error occurred';
+                        this.handleError(reject, new Error(errorMessage));
                         return;
                     } else if (result?.conversationId) {
                         responseThreadId = result.conversationId;
@@ -226,7 +227,7 @@ export class SSEStreamingHandler {
      * 2. 재시도 가능한 에러 판별
      * 3. 사용자 친화적 에러 메시지 생성
      */
-    private handleError(reject: (reason?: any) => void, error: Error): void {
+    private handleError(reject: (reason?: Error) => void, error: Error): void {
         console.error('SSE processing error:', error);
         this.cleanup();
         this.options.onError?.(error);

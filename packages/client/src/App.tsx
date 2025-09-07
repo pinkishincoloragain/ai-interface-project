@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { ChatContainer } from '@/features/chat';
 import { ThreadSidebarContainer, useThreadStore } from '@/features/thread';
 import { useAuth, LoginForm } from '@/features/auth';
@@ -8,6 +8,23 @@ function App() {
     const [activeThreadId, setActiveThreadId] = useState<string | undefined>();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const threads = useThreadStore((state) => state.threads);
+
+    // All hooks must be at the top level
+    const handleThreadSelect = useCallback((threadId: string) => {
+        setActiveThreadId(threadId);
+    }, []);
+
+    const handleThreadCreated = useCallback((threadId: string) => {
+        setActiveThreadId(threadId);
+    }, []);
+
+    const handleToggleSidebar = useCallback(() => {
+        setIsSidebarCollapsed(!isSidebarCollapsed);
+    }, [isSidebarCollapsed]);
+
+    const handleSignOut = useCallback(async () => {
+        await signOut();
+    }, [signOut]);
 
     if (loading) {
         return (
@@ -20,18 +37,6 @@ function App() {
     if (!user) {
         return <LoginForm />;
     }
-
-    const handleThreadSelect = (threadId: string) => {
-        setActiveThreadId(threadId);
-    };
-
-    const handleThreadCreated = (threadId: string) => {
-        setActiveThreadId(threadId);
-    };
-
-    const handleToggleSidebar = () => {
-        setIsSidebarCollapsed(!isSidebarCollapsed);
-    };
 
     return (
         <div className="h-screen bg-gray-950 flex overflow-hidden">
@@ -52,7 +57,7 @@ function App() {
                     <h1 className="text-xl font-semibold text-gray-100">
                         {activeThreadId ? threads.find((t) => t.id === activeThreadId)?.title || 'Chat' : 'New Chat'}
                     </h1>
-                    <button onClick={() => signOut()} className="text-sm text-gray-400 hover:text-gray-200">
+                    <button onClick={handleSignOut} className="text-sm text-gray-400 hover:text-gray-200">
                         Sign Out
                     </button>
                 </div>

@@ -40,8 +40,8 @@ async function startServer() {
         });
 
         // Request logging middleware
-        fastify.addHook('onRequest', async (request, reply) => {
-            console.log(`[${new Date().toISOString()}] ${request.method} ${request.url}`);
+        fastify.addHook('onRequest', async (request) => {
+            // Request logging handled by Fastify logger
         });
 
         // Swagger 문서 설정 - OpenAPI 3.0 사용

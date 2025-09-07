@@ -1,26 +1,95 @@
 import { FastifyInstance } from 'fastify';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatCompletionRequest, ChatMessage, ChatStreamChunk } from 'shared/types/chat';
-import { fallbackService, openaiService } from '@/services';
-import { threadManager } from '@/services/threadManager';
+import { fallbackService, openaiService } from '../services/index.js';
+import { threadManager } from '../services/threadManager.js';
+import { createUserSupabaseClient, supabase } from '../services/supabase.js';
 import OpenAI from 'openai';
+
+async function getUserFromRequest(request: any) {
+    const authHeader = request.headers.authorization;
+    if (!authHeader) {
+        throw new Error('No authorization header');
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const userClient = createUserSupabaseClient(token);
+
+    const {
+        data: { user },
+        error,
+    } = await userClient.auth.getUser();
+    if (error || !user) {
+        throw new Error('Invalid or expired token');
+    }
+
+    return { user, userClient };
+}
 
 export function registerStreamRoutes(fastify: FastifyInstance) {
     // 스트리밍 응답을 위한 라우트
     fastify.post<{ Body: ChatCompletionRequest }>('/api/chat/stream', async (request, reply) => {
         try {
-            const { messages, conversationId } = request.body;
+            const { messages, conversationId, messageId: providedMessageId } = request.body;
 
-            const messageId = uuidv4();
-            const convoId = conversationId || uuidv4();
+            // Get authenticated user
+            let user, userClient;
+            try {
+                const auth = await getUserFromRequest(request);
+                user = auth.user;
+                userClient = auth.userClient;
+            } catch (error) {
+                reply.code(401).send({ error: 'Unauthorized' });
+                return;
+            }
 
-            // Get or create thread
-            const thread = threadManager.getOrCreateThread(convoId, 'New Chat');
+            const messageId = providedMessageId || uuidv4();
+            let convoId = conversationId;
 
-            // Save any new user messages that aren't in the thread yet
+            // If no conversation ID, create a new thread
+            if (!convoId) {
+                const { data: newThread, error: threadError } = await userClient
+                    .from('threads')
+                    .insert({
+                        title: 'New Chat',
+                        user_id: user.id,
+                    })
+                    .select()
+                    .single();
+
+                if (threadError || !newThread) {
+                    throw new Error('Failed to create thread');
+                }
+
+                convoId = newThread.id;
+            }
+
+            // Save user message to database
             const lastUserMessage = messages[messages.length - 1];
             if (lastUserMessage && lastUserMessage.role === 'user') {
-                // Check if this message is already in the thread
+                try {
+                    const { data: savedUserMessage, error } = await userClient
+                        .from('messages')
+                        .insert({
+                            thread_id: convoId,
+                            user_id: user.id,
+                            role: lastUserMessage.role,
+                            content: lastUserMessage.content,
+                        })
+                        .select()
+                        .single();
+
+                    if (error) {
+                        console.error('Failed to save user message:', error);
+                    }
+                } catch (error) {
+                    console.error('Error saving user message:', error);
+                }
+            }
+
+            // Fallback to in-memory thread manager for legacy compatibility
+            const thread = threadManager.getOrCreateThread(convoId!, 'New Chat');
+            if (lastUserMessage && lastUserMessage.role === 'user') {
                 const existingMessage = thread.messages.find(
                     (m) => m.content === lastUserMessage.content && m.role === 'user'
                 );
@@ -31,7 +100,7 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
                         content: lastUserMessage.content,
                         createdAt: new Date().toISOString(),
                     };
-                    threadManager.addMessageToThread(convoId, userMessage);
+                    threadManager.addMessageToThread(convoId!, userMessage);
                 }
             }
 
@@ -56,13 +125,13 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
 
                 // 초기 경고 메시지
                 const warningMessage = '⚠️ OpenAI API가 설정되지 않았습니다.\n\n';
-                assistantResponse += warningMessage;
                 for (const char of warningMessage) {
+                    assistantResponse += char;
                     const chunk: ChatStreamChunk = {
                         id: messageId,
-                        content: char,
+                        content: assistantResponse,
                         role: 'assistant',
-                        conversationId: convoId,
+                        conversationId: convoId!,
                         isDone: false,
                     };
                     reply.raw.write(`data: ${JSON.stringify(chunk)}\n\n`);
@@ -74,10 +143,10 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
                     assistantResponse += mockChunk.content;
                     const streamChunk: ChatStreamChunk = {
                         id: messageId,
-                        content: mockChunk.content,
+                        content: assistantResponse,
                         role: 'assistant',
-                        conversationId: convoId,
-                        isDone: false,
+                        conversationId: convoId!,
+                        isDone: mockChunk.isDone,
                     };
                     reply.raw.write(`data: ${JSON.stringify(streamChunk)}\n\n`);
                 }
@@ -85,13 +154,13 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
                 // 설정 안내 메시지
                 const setupMessage =
                     '\n\n💡 실제 AI 응답을 받으려면:\n1. .env 파일에 OPENAI_API_KEY를 설정하세요\n2. 서버를 재시작하세요';
-                assistantResponse += setupMessage;
                 for (const char of setupMessage) {
+                    assistantResponse += char;
                     const chunk: ChatStreamChunk = {
                         id: messageId,
-                        content: char,
+                        content: assistantResponse,
                         role: 'assistant',
-                        conversationId: convoId,
+                        conversationId: convoId!,
                         isDone: false,
                     };
                     reply.raw.write(`data: ${JSON.stringify(chunk)}\n\n`);
@@ -103,7 +172,7 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
                     id: messageId,
                     content: '',
                     role: 'assistant',
-                    conversationId: convoId,
+                    conversationId: convoId!,
                     isDone: true,
                 };
                 reply.raw.write(`data: ${JSON.stringify(finalChunk)}\n\n`);
@@ -126,9 +195,9 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
                         assistantResponse += content;
                         const streamChunk: ChatStreamChunk = {
                             id: messageId,
-                            content,
+                            content: assistantResponse,
                             role: 'assistant',
-                            conversationId: convoId,
+                            conversationId: convoId!,
                             isDone: finishReason === 'stop',
                         };
 
@@ -143,15 +212,42 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
                 }
             }
 
-            // Save assistant response to thread
+            // Save assistant response to both Supabase and in-memory store
             if (assistantResponse.trim()) {
+                // Save to Supabase
+                try {
+                    const { data: savedAssistantMessage, error } = await userClient
+                        .from('messages')
+                        .insert({
+                            thread_id: convoId,
+                            user_id: user.id,
+                            role: 'assistant',
+                            content: assistantResponse,
+                        })
+                        .select()
+                        .single();
+
+                    if (error) {
+                        console.error('Failed to save assistant message:', error);
+                    } else {
+                        // Update thread's updated_at timestamp
+                        await userClient
+                            .from('threads')
+                            .update({ updated_at: new Date().toISOString() })
+                            .eq('id', convoId);
+                    }
+                } catch (error) {
+                    console.error('Error saving assistant message:', error);
+                }
+
+                // Also save to in-memory store for legacy compatibility
                 const assistantMessage: ChatMessage = {
                     id: messageId,
                     role: 'assistant',
                     content: assistantResponse,
                     createdAt: new Date().toISOString(),
                 };
-                threadManager.addMessageToThread(convoId, assistantMessage);
+                threadManager.addMessageToThread(convoId!, assistantMessage);
             }
 
             // SSE 스트림 종료 신호

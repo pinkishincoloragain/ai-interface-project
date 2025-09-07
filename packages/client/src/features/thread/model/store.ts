@@ -18,6 +18,7 @@ export interface ThreadState {
     updateThread: (threadId: string, updates: Partial<Thread>) => void;
     removeThread: (threadId: string) => void;
     setSelectedThreadId: (threadId?: string) => void;
+    clearThreads: () => void;
 }
 
 export const useThreadStore = create<ThreadState>()(
@@ -44,6 +45,8 @@ export const useThreadStore = create<ThreadState>()(
                 })),
 
             setSelectedThreadId: (threadId) => set({ selectedThreadId: threadId }),
+
+            clearThreads: () => set({ threads: [], selectedThreadId: undefined }),
         }),
         {
             name: 'thread-store',

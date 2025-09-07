@@ -31,25 +31,33 @@ export const useThreadQuery = (threadId: string) =>
 
 export const useThreadMessagesQuery = (threadId?: string) => {
     const setMessages = useChatStore((state) => state.setMessages);
-    const currentMessages = useChatStore((state) => state.messages);
     const loading = useChatStore((state) => state.loading);
+    const messagesInitialized = useChatStore((state) => state.messagesInitialized);
+    const currentThreadId = useChatStore((state) => state.currentThreadId);
+
+    // Use threadId parameter or fall back to currentThreadId from store
+    const effectiveThreadId = threadId || currentThreadId;
 
     const query = useQuery({
-        queryKey: QUERY_KEYS.threads.messages(threadId || ''),
-        queryFn: () => threadApiClient.getThreadMessages(threadId!),
-        enabled: !!threadId,
+        queryKey: QUERY_KEYS.threads.messages(effectiveThreadId || ''),
+        queryFn: () => threadApiClient.getThreadMessages(effectiveThreadId!),
+        enabled: !!effectiveThreadId && !loading, // Don't fetch during active streaming
     });
 
-    // Update store when data changes, but avoid overwriting during active streaming
+    // Update store when data changes, but preserve local messages during active sessions
     React.useEffect(() => {
-        if (query.data && threadId && !loading) {
-            // Only update if we don't have messages or if there's no active streaming
-            const hasStreamingMessage = currentMessages.some((msg) => msg.status === 'sending');
-            if (!hasStreamingMessage) {
-                setMessages(query.data.thread.messages || []);
+        if (query.data && effectiveThreadId && !loading) {
+            const serverMessages = query.data.thread.messages || [];
+            const currentMessages = useChatStore.getState().messages;
+
+            // Only update from server if:
+            // 1. Messages haven't been initialized for this thread, OR
+            // 2. We have no local messages but server has messages (thread switch case)
+            if (!messagesInitialized || (currentMessages.length === 0 && serverMessages.length > 0)) {
+                setMessages(serverMessages);
             }
         }
-    }, [query.data, threadId, setMessages, loading, currentMessages]);
+    }, [query.data, effectiveThreadId, setMessages, loading, messagesInitialized]);
 
     return query;
 };
@@ -60,7 +68,7 @@ export const useCreateThreadMutation = () => {
 
     return useMutation({
         mutationFn: threadApiClient.createThread.bind(threadApiClient),
-        onSuccess: (data: any) => {
+        onSuccess: (data: { thread: import('@/entities/thread/model/types').Thread }) => {
             addThread(data.thread);
             queryClient.invalidateQueries({ queryKey: QUERY_KEYS.threads.list() });
         },

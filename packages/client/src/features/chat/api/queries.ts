@@ -14,7 +14,6 @@ export const useSendMessageMutation = () => {
     const queryClient = useQueryClient();
     const addMessage = useChatStore((state) => state.addMessage);
     const updateMessage = useChatStore((state) => state.updateMessage);
-    const removeMessage = useChatStore((state) => state.removeMessage);
     const setCurrentThreadId = useChatStore((state) => state.setCurrentThreadId);
     const setLoading = useChatStore((state) => state.setLoading);
     const currentThreadId = useChatStore((state) => state.currentThreadId);
@@ -29,18 +28,22 @@ export const useSendMessageMutation = () => {
             addMessage(userMessage);
 
             try {
+                // Create placeholder assistant message first
+                const assistantPlaceholder = MessageFactory.createAssistantMessage('');
+                addMessage(assistantPlaceholder);
+
                 // Get current messages for the request
                 const currentMessages = [
                     ...useChatStore.getState().messages.filter((m) => m.status === 'success'),
                     userMessage,
                 ];
 
-                // Send request
-                const response = await chatApi.sendMessage(currentMessages, threadId || currentThreadId);
-
-                // Create placeholder assistant message
-                const assistantPlaceholder = MessageFactory.createAssistantMessage('');
-                addMessage(assistantPlaceholder);
+                // Send request with the placeholder message ID
+                const response = await chatApi.sendMessage(
+                    currentMessages,
+                    threadId || currentThreadId,
+                    assistantPlaceholder.id
+                );
 
                 // Process SSE stream with the enhanced architecture
                 let assistantMessageId: string | null = assistantPlaceholder.id;
@@ -68,15 +71,8 @@ export const useSendMessageMutation = () => {
                             setCurrentThreadId(event.conversationId);
                         }
 
-                        // Handle message ID synchronization
-                        if (event.messageId !== assistantMessageId) {
-                            const oldId = assistantMessageId;
-                            assistantMessageId = event.messageId;
-
-                            if (oldId) {
-                                removeMessage(oldId);
-                            }
-                        }
+                        // Message IDs should now match since we send the placeholder ID to the server
+                        assistantMessageId = event.messageId;
 
                         // Update message content
                         if (event.content !== undefined) {
@@ -93,7 +89,10 @@ export const useSendMessageMutation = () => {
                             const existingMessage = currentMessages.find((m) => m.id === assistantMessageId);
 
                             if (existingMessage) {
-                                updateMessage(assistantMessageId!, assistantMessage);
+                                updateMessage(assistantMessageId!, {
+                                    content: event.content,
+                                    status: event.isDone ? 'success' : 'sending',
+                                });
                             } else {
                                 addMessage(assistantMessage);
                             }
@@ -111,13 +110,6 @@ export const useSendMessageMutation = () => {
                                 content: event.userMessage || '오류가 발생했습니다.',
                             });
                         }
-
-                        console.error('Enhanced streaming error:', {
-                            type: event.error.type,
-                            message: event.error.message,
-                            recoverable: event.error.recoverable,
-                            userMessage: event.userMessage,
-                        });
                     },
 
                     // Handle completion
@@ -128,13 +120,15 @@ export const useSendMessageMutation = () => {
                             updateMessage(assistantMessageId, { status: 'success' });
                         }
 
-                        // Invalidate queries after streaming completes
-                        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.threads.list() });
-                        if (event.conversationId) {
-                            queryClient.invalidateQueries({
-                                queryKey: QUERY_KEYS.threads.messages(event.conversationId),
-                            });
-                        }
+                        // Delay query invalidations to prevent immediate refetch during UI updates
+                        setTimeout(() => {
+                            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.threads.list() });
+                            if (event.conversationId) {
+                                queryClient.invalidateQueries({
+                                    queryKey: QUERY_KEYS.threads.messages(event.conversationId),
+                                });
+                            }
+                        }, 500);
                     },
 
                     // Handle timeout with better UX
@@ -150,15 +144,25 @@ export const useSendMessageMutation = () => {
                     },
 
                     // Handle retry attempts
-                    onRetry: (event) => {
-                        console.log(
-                            `Retrying request (attempt ${event.attempt}), next retry in ${event.nextRetryIn}ms`
-                        );
+                    onRetry: (_event) => {
                         // Could show retry UI feedback here
                     },
                 });
 
-                return chatAdapter.stream(response);
+                const streamPromise = chatAdapter.stream(response);
+
+                // Add fallback timeout to ensure loading is always reset
+                const fallbackTimeout = setTimeout(() => {
+                    setLoading(false);
+                }, 65000); // 5 seconds after the main timeout
+
+                streamPromise.finally(() => {
+                    clearTimeout(fallbackTimeout);
+                    // Ensure loading is always reset regardless of how streaming ended
+                    setLoading(false);
+                });
+
+                return streamPromise;
             } catch (error) {
                 setLoading(false);
                 // If we have an assistant message placeholder, mark it as error
