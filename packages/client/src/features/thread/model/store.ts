@@ -1,12 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-
-export interface Thread {
-    id: string;
-    title: string;
-    createdAt: string;
-    updatedAt: string;
-}
+import type { Thread } from '@/entities/thread';
 
 export interface ThreadState {
     threads: Thread[];
@@ -18,6 +12,7 @@ export interface ThreadState {
     updateThread: (threadId: string, updates: Partial<Thread>) => void;
     removeThread: (threadId: string) => void;
     setSelectedThreadId: (threadId?: string) => void;
+    clearThreads: () => void;
 }
 
 export const useThreadStore = create<ThreadState>()(
@@ -44,6 +39,8 @@ export const useThreadStore = create<ThreadState>()(
                 })),
 
             setSelectedThreadId: (threadId) => set({ selectedThreadId: threadId }),
+
+            clearThreads: () => set({ threads: [], selectedThreadId: undefined }),
         }),
         {
             name: 'thread-store',

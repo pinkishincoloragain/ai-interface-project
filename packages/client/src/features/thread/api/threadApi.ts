@@ -1,5 +1,5 @@
-import { Thread } from '../model/store';
-import { ChatMessage } from '@/shared';
+import { Thread } from '@/features';
+import type { ChatMessage } from '@/entities/message';
 
 const API_BASE = '/api';
 

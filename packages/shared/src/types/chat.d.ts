@@ -21,6 +21,7 @@ export interface ChatConversation {
 export interface ChatCompletionRequest {
     messages: ChatMessage[];
     conversationId?: string;
+    messageId?: string;
 }
 
 export interface ChatCompletionResponse {

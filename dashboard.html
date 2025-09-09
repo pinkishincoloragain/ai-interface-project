@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Local Dashboard</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .function-test {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Supabase Local Development Dashboard</h1>
+    
+    <div class="container">
+        <h2>Connection Status</h2>
+        <div id="connection-status" class="status info">Testing connection...</div>
+        <button onclick="testConnection()">Test Connection</button>
+    </div>
+
+    <div class="container">
+        <h2>Database Info</h2>
+        <div id="db-info">
+            <p><strong>API URL:</strong> http://127.0.0.1:54321</p>
+            <p><strong>REST API:</strong> http://127.0.0.1:54321/rest/v1</p>
+            <p><strong>Swagger/OpenAPI:</strong> <a href="http://127.0.0.1:54321/rest/v1/" target="_blank">http://127.0.0.1:54321/rest/v1/</a></p>
+            <p><strong>GraphQL URL:</strong> http://127.0.0.1:54321/graphql/v1</p>
+            <p><strong>Database URL:</strong> postgresql://postgres:postgres@127.0.0.1:54322/postgres</p>
+            <p><strong>Storage URL:</strong> http://127.0.0.1:54321/storage/v1/s3</p>
+            <p><strong>Inbucket URL:</strong> <a href="http://127.0.0.1:54324" target="_blank">http://127.0.0.1:54324</a></p>
+        </div>
+        <button onclick="testTables()">Test Database Tables</button>
+        <div id="tables-result"></div>
+    </div>
+
+    <div class="container">
+        <h2>Authentication Test</h2>
+        <div id="auth-status" class="status info">Not tested</div>
+        <button onclick="testAuth()">Test Anonymous Access</button>
+        <div id="auth-result"></div>
+    </div>
+
+    <div class="container">
+        <h2>Edge Functions Test</h2>
+        
+        <div class="function-test">
+            <h3>Chat Function</h3>
+            <div id="chat-status" class="status info">Not tested</div>
+            <button onclick="testChatFunction()">Test Chat Function</button>
+            <div id="chat-result"></div>
+        </div>
+        
+        <div class="function-test">
+            <h3>Stream Function</h3>
+            <div id="stream-status" class="status info">Not tested</div>
+            <button onclick="testStreamFunction()">Test Stream Function</button>
+            <div id="stream-result"></div>
+        </div>
+        
+        <div class="function-test">
+            <h3>Threads Function</h3>
+            <div id="threads-status" class="status info">Not tested</div>
+            <button onclick="testThreadsFunction()">Test Threads Function</button>
+            <div id="threads-result"></div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Supabase client
+        const supabaseUrl = 'http://127.0.0.1:54321'
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
+        
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
+
+        async function testConnection() {
+            const statusEl = document.getElementById('connection-status')
+            statusEl.textContent = 'Testing connection...'
+            statusEl.className = 'status info'
+            
+            try {
+                // Test the REST API directly
+                const response = await fetch(`${supabaseUrl}/rest/v1/`, {
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Content-Type': 'application/json'
+                    }
+                })
+                
+                if (response.ok) {
+                    statusEl.textContent = 'Connection successful! REST API is accessible.'
+                    statusEl.className = 'status success'
+                } else {
+                    throw new Error(`HTTP ${response.status}`)
+                }
+            } catch (error) {
+                statusEl.textContent = `Connection failed: ${error.message}`
+                statusEl.className = 'status error'
+            }
+        }
+
+        async function testTables() {
+            const resultEl = document.getElementById('tables-result')
+            resultEl.innerHTML = '<div class="status info">Testing database tables...</div>'
+            
+            try {
+                // Test threads table
+                const { data: threads, error: threadsError } = await supabase
+                    .from('threads')
+                    .select('*')
+                    .limit(5)
+                
+                // Test messages table  
+                const { data: messages, error: messagesError } = await supabase
+                    .from('messages')
+                    .select('*')
+                    .limit(5)
+                
+                const results = {
+                    threads: { data: threads, error: threadsError },
+                    messages: { data: messages, error: messagesError }
+                }
+                
+                resultEl.innerHTML = `<div class="status success">Database tables accessible!</div><pre>${JSON.stringify(results, null, 2)}</pre>`
+            } catch (error) {
+                resultEl.innerHTML = `<div class="status error">Tables test failed: ${error.message}</div><pre>${JSON.stringify(error, null, 2)}</pre>`
+            }
+        }
+
+        async function testAuth() {
+            const statusEl = document.getElementById('auth-status')
+            const resultEl = document.getElementById('auth-result')
+            
+            statusEl.textContent = 'Testing authentication...'
+            statusEl.className = 'status info'
+            
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser()
+                
+                if (error) {
+                    throw error
+                }
+                
+                statusEl.textContent = 'Authentication test completed'
+                statusEl.className = 'status success'
+                resultEl.innerHTML = `<pre>${JSON.stringify({ user }, null, 2)}</pre>`
+            } catch (error) {
+                statusEl.textContent = `Authentication failed: ${error.message}`
+                statusEl.className = 'status error'
+                resultEl.innerHTML = `<pre>${JSON.stringify(error, null, 2)}</pre>`
+            }
+        }
+
+        async function testChatFunction() {
+            const statusEl = document.getElementById('chat-status')
+            const resultEl = document.getElementById('chat-result')
+            
+            statusEl.textContent = 'Testing chat function...'
+            statusEl.className = 'status info'
+            
+            try {
+                // Test GET request first (health check)
+                const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${supabaseKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                })
+                
+                const result = await response.json()
+                
+                if (response.ok) {
+                    statusEl.textContent = 'Chat function is working!'
+                    statusEl.className = 'status success'
+                } else if (response.status === 401 && result.error === 'Unauthorized') {
+                    statusEl.textContent = 'Chat function is accessible! (Expected: requires authentication)'
+                    statusEl.className = 'status success'
+                } else {
+                    statusEl.textContent = `Chat function error: ${result.error}`
+                    statusEl.className = 'status error'
+                }
+                
+                resultEl.innerHTML = `<pre>Status: ${response.status}\nResponse: ${JSON.stringify(result, null, 2)}</pre>`
+            } catch (error) {
+                statusEl.textContent = `Chat function failed: ${error.message}`
+                statusEl.className = 'status error'
+                resultEl.innerHTML = `<pre>${JSON.stringify(error, null, 2)}</pre>`
+            }
+        }
+
+        async function testStreamFunction() {
+            const statusEl = document.getElementById('stream-status')
+            const resultEl = document.getElementById('stream-result')
+            
+            statusEl.textContent = 'Testing stream function...'
+            statusEl.className = 'status info'
+            
+            try {
+                const response = await fetch(`${supabaseUrl}/functions/v1/stream`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${supabaseKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                })
+                
+                const result = await response.json()
+                
+                if (response.ok) {
+                    statusEl.textContent = 'Stream function is accessible!'
+                    statusEl.className = 'status success'
+                } else if (response.status === 401 && result.error === 'Unauthorized') {
+                    statusEl.textContent = 'Stream function is accessible! (Expected: requires authentication)'
+                    statusEl.className = 'status success'
+                } else if (response.status === 405) {
+                    statusEl.textContent = 'Stream function is accessible! (Expected: GET not allowed)'
+                    statusEl.className = 'status success'
+                } else {
+                    statusEl.textContent = `Stream function error: ${result.error}`
+                    statusEl.className = 'status error'
+                }
+                
+                resultEl.innerHTML = `<pre>Status: ${response.status}\nResponse: ${JSON.stringify(result, null, 2)}</pre>`
+            } catch (error) {
+                statusEl.textContent = `Stream function failed: ${error.message}`
+                statusEl.className = 'status error'
+                resultEl.innerHTML = `<pre>${JSON.stringify(error, null, 2)}</pre>`
+            }
+        }
+
+        async function testThreadsFunction() {
+            const statusEl = document.getElementById('threads-status')
+            const resultEl = document.getElementById('threads-result')
+            
+            statusEl.textContent = 'Testing threads function...'
+            statusEl.className = 'status info'
+            
+            try {
+                const response = await fetch(`${supabaseUrl}/functions/v1/threads`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${supabaseKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                })
+                
+                const result = await response.json()
+                
+                if (response.ok) {
+                    statusEl.textContent = 'Threads function is working!'
+                    statusEl.className = 'status success'
+                } else if (response.status === 401 && result.error === 'Unauthorized') {
+                    statusEl.textContent = 'Threads function is accessible! (Expected: requires authentication)'
+                    statusEl.className = 'status success'
+                } else if (response.status === 405) {
+                    statusEl.textContent = 'Threads function is accessible! (Expected: GET not allowed)'
+                    statusEl.className = 'status success'
+                } else {
+                    statusEl.textContent = `Threads function error: ${result.error}`
+                    statusEl.className = 'status error'
+                }
+                
+                resultEl.innerHTML = `<pre>Status: ${response.status}\nResponse: ${JSON.stringify(result, null, 2)}</pre>`
+            } catch (error) {
+                statusEl.textContent = `Threads function failed: ${error.message}`
+                statusEl.className = 'status error'
+                resultEl.innerHTML = `<pre>${JSON.stringify(error, null, 2)}</pre>`
+            }
+        }
+
+        // Auto-test connection on page load
+        window.addEventListener('load', () => {
+            testConnection()
+        })
+    </script>
+</body>
+</html>

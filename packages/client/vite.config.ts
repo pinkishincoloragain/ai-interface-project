@@ -7,6 +7,9 @@ export default defineConfig({
     plugins: [react()],
     server: {
         port: 3000,
+        hmr: {
+            port: 24678,
+        },
         proxy: {
             '/api': {
                 target: 'http://localhost:3001',
@@ -17,7 +20,9 @@ export default defineConfig({
                 ws: false,
                 configure: (proxy, _options) => {
                     proxy.on('error', (err, req, res) => {
+                        // eslint-disable-next-line no-console
                         console.log('Proxy error:', err.message);
+                        // eslint-disable-next-line no-console
                         console.log('Request URL:', req.url);
                         if (!res.headersSent) {
                             res.writeHead(500, {
@@ -27,12 +32,15 @@ export default defineConfig({
                         }
                     });
                     proxy.on('proxyReq', (proxyReq, req, _res) => {
+                        // eslint-disable-next-line no-console
                         console.log('→ Proxy Request:', req.method, req.url, '→', proxyReq.getHeader('host'));
                     });
                     proxy.on('proxyRes', (proxyRes, req, _res) => {
+                        // eslint-disable-next-line no-console
                         console.log('← Proxy Response:', proxyRes.statusCode, req.url);
                     });
                     proxy.on('proxyReqError', (err, req, res) => {
+                        // eslint-disable-next-line no-console
                         console.log('Proxy request error:', err.message, 'for', req.url);
                         if (!res.headersSent) {
                             res.writeHead(500, {

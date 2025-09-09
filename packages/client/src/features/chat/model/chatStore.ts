@@ -1,4 +1,4 @@
-import { ChatMessage } from '@/shared';
+import type { ChatMessage } from '@/entities/message';
 import { v4 as uuidv4 } from 'uuid';
 
 export class ChatStore {

@@ -19,7 +19,7 @@ import {
     getMarkdownContainerStyle,
     getMarkdownStyles,
     TokenState,
-} from '@/shared';
+} from 'shared';
 
 // Register highlight.js languages
 hljs.registerLanguage('javascript', javascript);

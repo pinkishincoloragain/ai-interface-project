@@ -56,6 +56,22 @@ class ThreadManager {
         return this.threads.delete(threadId);
     }
 
+    getOrCreateThread(threadId: string, defaultTitle: string = 'Recovered Chat'): ChatThread {
+        let thread = this.threads.get(threadId);
+        if (!thread) {
+            // Create a new thread with the specific ID
+            thread = {
+                id: threadId,
+                title: defaultTitle,
+                messages: [],
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            };
+            this.threads.set(threadId, thread);
+        }
+        return thread;
+    }
+
     updateThreadTitle(threadId: string, title: string): boolean {
         const thread = this.threads.get(threadId);
         if (!thread) {

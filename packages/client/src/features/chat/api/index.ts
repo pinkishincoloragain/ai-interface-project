@@ -1,2 +1,2 @@
 export * from './chatApi';
-export * from './queries';
+export * from './client';

@@ -1,11 +1,5 @@
-import { ChatMessage } from '@/shared';
-
-const API_BASE = '/api';
-
-export interface ChatCompletionRequest {
-    messages: ChatMessage[];
-    conversationId?: string;
-}
+import { chatApiClient } from './client';
+import type { ChatMessage } from '@/entities/message';
 
 export interface ChatCompletionResponse {
     id: string;
@@ -13,33 +7,9 @@ export interface ChatCompletionResponse {
     conversationId: string;
 }
 
-export interface SSEMessageData {
-    id: string;
-    content: string;
-    role: 'assistant';
-    conversationId: string;
-    isDone: boolean;
-}
-
 export const chatApi = {
-    sendMessage: async (messages: ChatMessage[], conversationId?: string): Promise<Response> => {
-        const response = await fetch(`${API_BASE}/chat/sse`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                messages,
-                conversationId,
-            }),
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        return response;
-    },
+    sendMessage: chatApiClient.sendMessage.bind(chatApiClient),
+    saveMessage: chatApiClient.saveMessage.bind(chatApiClient),
 };
 
 // Legacy support
