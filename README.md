@@ -289,3 +289,4 @@ src/hooks/useHookName.test.ts
 
 - 각 컴포넌트와 중요 함수에는 JSDoc 주석을 추가해주세요.
 - API 변경 사항은 이 README.md 파일을 업데이트해주세요.
+  // Enhanced bot test - Fri Nov 7 20:52:03 KST 2025
