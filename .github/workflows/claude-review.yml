@@ -1,0 +1,83 @@
+name: Claude AI Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  claude-analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        run: |
+          git diff --name-only origin/${{ github.base_ref }}..HEAD > changed_files.txt
+          echo "files=$(cat changed_files.txt | tr '\n' ' ')" >> $GITHUB_OUTPUT
+
+      - name: Get PR details
+        id: pr-details
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            
+            core.setOutput('title', pr.title);
+            core.setOutput('body', pr.body || 'No description provided');
+            core.setOutput('author', pr.user.login);
+
+      - name: Analyze with Claude
+        id: claude-review
+        run: |
+          # Create a summary of changes
+          echo "## PR Analysis Request" > analysis_request.txt
+          echo "" >> analysis_request.txt
+          echo "**Title:** ${{ steps.pr-details.outputs.title }}" >> analysis_request.txt
+          echo "**Author:** ${{ steps.pr-details.outputs.author }}" >> analysis_request.txt
+          echo "" >> analysis_request.txt
+          echo "**Description:**" >> analysis_request.txt
+          echo "${{ steps.pr-details.outputs.body }}" >> analysis_request.txt
+          echo "" >> analysis_request.txt
+          echo "**Changed Files:**" >> analysis_request.txt
+          cat changed_files.txt >> analysis_request.txt
+          echo "" >> analysis_request.txt
+          echo "**Code Diff (first 3000 chars):**" >> analysis_request.txt
+          git diff origin/${{ github.base_ref }}..HEAD | head -c 3000 >> analysis_request.txt
+          
+          # Note: This is a placeholder - you would need to implement actual Claude API call
+          echo "📝 **Claude AI Analysis Placeholder**" > claude_response.txt
+          echo "" >> claude_response.txt
+          echo "This would contain Claude's analysis of:" >> claude_response.txt
+          echo "- Code quality and patterns" >> claude_response.txt
+          echo "- Potential improvements" >> claude_response.txt
+          echo "- Security considerations" >> claude_response.txt
+          echo "- Best practices compliance" >> claude_response.txt
+          echo "" >> claude_response.txt
+          echo "*Note: Implement actual Claude API integration for real analysis*" >> claude_response.txt
+
+      - name: Post Claude Review
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const review = fs.readFileSync('claude_response.txt', 'utf8');
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `🤖 **Claude AI Review**\n\n${review}\n\n---\n*Automated review by Claude AI*`
+            });
