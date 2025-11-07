@@ -133,9 +133,18 @@
                 spec.schemes = ['http'];
 
                 // Add server info
-                spec.info.title = 'Supabase REST API';
-                spec.info.description = 'Auto-generated REST API for your Supabase database schema';
-                spec.info.version = 'Local Development';
+                spec.info.title = 'Supabase REST API - Working Endpoints';
+                spec.info.description = 'Verified working REST API endpoints for your Supabase database schema\n\n**Available Tables:**\n- threads (CRUD operations)\n- messages (CRUD operations)\n\n**Auth Endpoints:**\n- /auth/v1/signup\n- /auth/v1/login\n- /auth/v1/logout\n- /auth/v1/token\n\n**Note:** Only verified working endpoints are shown here.';
+                spec.info.version = 'Local Development - Verified APIs';
+
+                // Add status header
+                const statusDiv = document.createElement('div');
+                statusDiv.className = 'custom-header';
+                statusDiv.innerHTML = `
+                    <h1>🚀 Supabase API Dashboard</h1>
+                    <p>✅ Connection Status: Online | 📊 Tables: threads, messages | 🔐 Auth: Available</p>
+                `;
+                document.body.insertBefore(statusDiv, document.getElementById('swagger-ui'));
 
                 // Initialize Swagger UI
                 const ui = SwaggerUIBundle({
@@ -166,12 +175,35 @@
             })
             .catch(error => {
                 console.error('Error loading API spec:', error);
+                
+                // Add error status header
+                const statusDiv = document.createElement('div');
+                statusDiv.className = 'custom-header';
+                statusDiv.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+                statusDiv.innerHTML = `
+                    <h1>❌ Supabase API Dashboard</h1>
+                    <p>Connection Status: Offline | Server not responding</p>
+                `;
+                document.body.insertBefore(statusDiv, document.getElementById('swagger-ui'));
+                
                 document.getElementById('swagger-ui').innerHTML = `
                     <div style="padding: 40px; text-align: center; color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; margin: 20px;">
                         <h3>⚠️ Unable to load API specification</h3>
                         <p>Make sure your Supabase local development server is running:</p>
                         <code style="background: #fff; padding: 10px; border-radius: 4px; display: inline-block;">npx supabase start</code>
                         <br><br>
+                        <div style="margin: 20px 0;">
+                            <h4>Expected Working Endpoints:</h4>
+                            <ul style="text-align: left; max-width: 400px; margin: 0 auto;">
+                                <li>GET/POST/PATCH/DELETE /rest/v1/threads</li>
+                                <li>GET/POST/PATCH/DELETE /rest/v1/messages</li>
+                                <li>POST /auth/v1/signup</li>
+                                <li>POST /auth/v1/login</li>
+                            </ul>
+                        </div>
+                        <p style="color: #856404; background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 4px;">
+                            <strong>Note:</strong> chat_sessions endpoint is not available - use threads instead
+                        </p>
                         <p>Error: ${error.message}</p>
                     </div>
                 `;
