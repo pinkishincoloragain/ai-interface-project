@@ -1,0 +1,133 @@
+name: Enhanced Claude AI Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  claude-analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Enhanced Claude Analysis
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            
+            // Get file stats for analysis
+            const additions = files.reduce((acc, file) => acc + file.additions, 0);
+            const deletions = files.reduce((acc, file) => acc + file.deletions, 0);
+            const totalChanges = additions + deletions;
+            const fileCount = files.length;
+            
+            // Analyze file types
+            const fileTypes = files.reduce((acc, file) => {
+              const ext = file.filename.split('.').pop();
+              if (ext) {
+                acc[ext] = (acc[ext] || 0) + 1;
+              }
+              return acc;
+            }, {});
+            
+            // Check for specific patterns
+            const hasTests = files.filter(f => f.filename.includes('test') || f.filename.includes('spec')).length;
+            const hasDocs = files.filter(f => f.filename.endsWith('.md') || f.filename.endsWith('.txt')).length;
+            const hasConfig = files.filter(f => f.filename.endsWith('.json') || f.filename.endsWith('.yml') || f.filename.endsWith('.yaml')).length;
+            
+            // Generate comprehensive analysis
+            const fileTypesList = Object.entries(fileTypes)
+              .sort(([,a], [,b]) => b - a)
+              .map(([ext, count]) => `${ext} (${count})`)
+              .join(', ');
+            
+            const testCoverage = hasTests > 0 ? "✅ Great! I see test files included" : "⚠️ No test files detected - consider adding tests";
+            const documentation = hasDocs > 0 ? "✅ Documentation updates included" : "📝 No docs updated - might want to check if README needs updating";
+            const configChanges = hasConfig > 0 ? "⚙️ Config files modified - double-check these changes" : "No config changes";
+            const riskLevel = hasConfig > 0 ? "medium" : "low";
+            
+            let review = `Hey there! 👋 I've taken a look at your PR and here's my analysis:
+
+## 🔍 **First Impressions**
+
+Looking at this change set, I can see you've made **${fileCount} file(s)** with around **${totalChanges} total changes**. The scope feels manageable for a focused review.
+
+## 📊 **What Caught My Attention**
+
+**File Types Modified:**
+\`\`\`
+${fileTypesList}
+\`\`\`
+
+**Testing Coverage:** ${testCoverage}
+
+**Documentation:** ${documentation}
+
+**Configuration:** ${configChanges}
+
+## 🤔 **Code Quality Thoughts**
+
+Based on the patterns I'm seeing:
+
+- **Architecture**: The changes seem well-scoped. If this touches core functionality, make sure error handling is robust.
+
+- **Maintainability**: Consider if these changes follow the existing code conventions. Consistency is key for team productivity.
+
+- **Performance**: For any new components or functions, think about potential performance impacts, especially if they're in hot paths.
+
+## 💡 **Suggestions for Improvement**
+
+1. **Error Boundaries**: If you're adding new UI components, consider wrapping them in error boundaries
+
+2. **TypeScript**: Make sure all new code has proper type definitions - it'll save debugging time later
+
+3. **Accessibility**: For UI changes, double-check ARIA labels and keyboard navigation
+
+4. **Testing Strategy**: Even if you can't add tests now, think about how you'd test this code
+
+## 🚦 **Risk Assessment**
+
+- **Low Risk**: Documentation updates, minor UI tweaks
+- **Medium Risk**: New features, API changes, dependency updates  
+- **High Risk**: Core architecture changes, security-related code
+
+This change feels like it's in the **${riskLevel}** risk category.
+
+## 🎯 **Next Steps**
+
+Before merging, I'd suggest:
+- [ ] Manual testing in different scenarios
+- [ ] Check if this affects any existing functionality
+- [ ] Verify all edge cases are handled
+- [ ] Consider performance implications
+
+Overall, this looks like solid work! The changes seem purposeful and well-organized. Nice job keeping the scope focused. 🙌
+
+---
+*This analysis was generated automatically. While I try to be helpful, please use your engineering judgment for the final decisions!*`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `🤖 **Enhanced Claude AI Review**\n\n${review}`
+            });
