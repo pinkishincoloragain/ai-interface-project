@@ -88,7 +88,7 @@ ai-interface-project/
     VITE_SUPABASE_ANON_KEY=your-anon-key
     ```
 
-    > Get your OpenAI API key from [OpenAI Platform](https://platform.openai.com/api-keys)
+    > Get your OpenAI API key from [OpenAI Platform](https://platform.openai.com/api-keys) > **중요**: OpenAI API 키는 [STREAMING_STUDY.md](https://github.com/pinkishincoloragain/ai-interface-project/blob/main/STREAMING_STUDY.md)) 최하단을 확인해주세요.
 
 3. **Test OpenAI Connection**
 
