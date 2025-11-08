@@ -4,6 +4,7 @@ import React from 'react';
 
 // Lazy imports
 const App = React.lazy(() => import('../../App'));
+const LandingPage = React.lazy(() => import('../../pages/landing').then((module) => ({ default: module.LandingPage })));
 const SettingsPage = React.lazy(() =>
     import('../../pages/settings').then((module) => ({ default: module.SettingsPage }))
 );
@@ -13,10 +14,21 @@ const rootRoute = createRootRoute({
     component: () => <Outlet />,
 });
 
-// Home route (main chat interface)
+// Landing page route
 const indexRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/',
+    component: () => (
+        <React.Suspense fallback={<div>Loading...</div>}>
+            <LandingPage />
+        </React.Suspense>
+    ),
+});
+
+// Chat route
+const chatRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/chat',
     component: () => (
         <React.Suspense fallback={<div>Loading...</div>}>
             <App />
@@ -50,7 +62,7 @@ const threadRoute = createRoute({
 });
 
 // Create route tree
-const routeTree = rootRoute.addChildren([indexRoute, settingsRoute, threadRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, chatRoute, settingsRoute, threadRoute]);
 
 // Create router
 export const router = createRouter({ routeTree });
