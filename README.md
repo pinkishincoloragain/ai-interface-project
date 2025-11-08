@@ -1,291 +1,308 @@
-# Seamless AI 인터페이스 프로젝트
+# Seamless AI Interface Project
 
-OpenAI GPT 모델을 활용한 AI 채팅 인터페이스 구현 프로젝트
+Modern AI chat interface implementation using OpenAI GPT models with real-time streaming capabilities.
 
-## 기술 스택
+## Tech Stack
 
-- **클라이언트**: React, TypeScript, Vite, TailwindCSS
-- **서버**: Fastify, TypeScript, OpenAI SDK
-- **AI 모델**: OpenAI GPT-3.5-turbo
-- **패키지 관리**: PNPM 워크스페이스 (모노레포)
-- **코드 품질**: ESLint, Prettier, Husky, lint-staged
-- **테스트**: Jest, React Testing Library
-- **배포**: Docker
+- **Frontend**: React, TypeScript, Vite, TailwindCSS, Zustand, TanStack Query
+- **Backend**: Fastify/Supabase Edge Functions, TypeScript, OpenAI SDK
+- **AI Model**: OpenAI GPT-4o-mini (configurable)
+- **Database**: Supabase PostgreSQL (for production) / In-memory (for development)
+- **Architecture**: Feature-Sliced Design (FSD)
+- **Package Management**: PNPM Workspaces (Monorepo)
+- **Code Quality**: ESLint, Prettier, Husky, lint-staged
+- **Testing**: Jest, React Testing Library
+- **Deployment**: Docker, Supabase
 
-## 프로젝트 구조
+## Project Structure
 
 ```
 ai-interface-project/
 ├── packages/
-│   ├── client/             # React + TypeScript 클라이언트
-│   ├── server/             # Fastify 서버
-│   └── shared/             # 공통 타입 및 유틸
-├── .github/                # GitHub Actions 워크플로우
+│   ├── client/             # React + TypeScript frontend
+│   │   ├── src/
+│   │   │   ├── app/        # Application layer (providers, router)
+│   │   │   ├── features/   # Feature-based modules
+│   │   │   ├── shared/     # Shared utilities and components
+│   │   │   └── pages/      # Page components
+│   ├── server/             # Fastify server
+│   └── shared/             # Shared types and utilities
+├── supabase/               # Supabase configuration
+│   ├── functions/          # Edge Functions
+│   └── migrations/         # Database migrations
+├── .github/                # GitHub Actions workflows
 ├── .husky/                 # Git hooks
-├── .vscode/                # VS Code 설정
-└── docker-compose.yml      # Docker 컴포즈 설정
+├── .vscode/                # VS Code configuration
+└── docker-compose.yml      # Docker Compose setup
 ```
 
-## 지원 기능
+## Features
 
-- OpenAI GPT-3.5-turbo와 실시간 채팅
-- 스트리밍 응답 지원
-- REST API (GET/POST)
-- Server-Sent Events (SSE)
-- WebSocket
+- **Real-time AI Chat**: OpenAI GPT integration with streaming responses
+- **Thread Management**: Organize conversations in separate threads
+- **Multiple Communication Protocols**: REST API, Server-Sent Events (SSE)
+- **State Management**: XState for complex state orchestration, Zustand for UI state
+- **Authentication**: Supabase Auth with email/password
+- **Responsive Design**: Modern UI with Radix UI and TailwindCSS
+- **Error Handling**: Comprehensive error boundaries and fallback mechanisms
+- **Real-time Updates**: Live message streaming and status updates
 
-## 시작하기
+## Getting Started
 
-### 필수 환경
+### Prerequisites
 
-- Node.js v16 이상
-- PNPM v7 이상
-- OpenAI API 키
+- Node.js v16+
+- PNPM v7+
+- OpenAI API key
+- Supabase account (for production deployment)
 
-### 환경 설정
+### Environment Setup
 
-1. **OpenAI API 키 설정**
-
-    프로젝트 루트에 `.env` 파일을 생성하고 OpenAI API 키를 추가하세요:
+1. **Clone and Install Dependencies**
 
     ```bash
-    # .env 파일 생성
+    git clone <repository-url>
+    cd ai-interface-project
+    pnpm install
+    ```
+
+2. **Environment Variables**
+
+    Create `.env` file in project root:
+
+    ```bash
     cp .env.example .env
     ```
 
-    `.env` 파일에 실제 API 키와 설정을 입력:
+    Configure your environment:
 
     ```env
     # OpenAI Configuration
-    OPENAI_API_KEY=sk-your-actual-openai-api-key-here
-
-    # OpenAI Model Configuration (default: gpt-4o-mini)
+    OPENAI_API_KEY=sk-your-openai-api-key-here
     OPENAI_MODEL=gpt-4o-mini
-
-    # OpenAI API Settings
     OPENAI_MAX_TOKENS=1000
     OPENAI_TEMPERATURE=0.7
+
+    # Supabase Configuration (for production)
+    VITE_SUPABASE_URL=https://your-project.supabase.co
+    VITE_SUPABASE_ANON_KEY=your-anon-key
     ```
 
-    > **중요**: OpenAI API 키는 [STREAMING_STUDY.md](https://github.com/pinkishincoloragain/ai-interface-project/blob/main/STREAMING_STUDY.md)) 최하단을 확인해주세요.
+    > Get your OpenAI API key from [OpenAI Platform](https://platform.openai.com/api-keys) > **중요**: OpenAI API 키는 [STREAMING_STUDY.md](https://github.com/pinkishincoloragain/ai-interface-project/blob/main/STREAMING_STUDY.md)) 최하단을 확인해주세요.
 
-2. **OpenAI 설정 테스트**
-
-    API 키가 올바르게 설정되었는지 확인하세요:
+3. **Test OpenAI Connection**
 
     ```bash
-    # 명령줄에서 OpenAI 연결 테스트
     cd packages/server
     pnpm test:openai
     ```
 
-    또는 서버 실행 후 HTTP 엔드포인트로 테스트:
+### Development
 
-    ```bash
-    # 서버 실행
-    pnpm dev:server
-
-    # 브라우저에서 확인
-    # http://localhost:3001/api/test/openai
-    ```
-
-### 설치
+#### Local Development (Fastify Server)
 
 ```bash
-# 모든 패키지의 의존성 설치
-pnpm install
-```
-
-### 개발 서버 실행
-
-환경 설정이 완료되면 개발 서버를 실행하세요:
-
-```bash
-# 클라이언트와 서버 동시 실행
+# Run both client and server
 pnpm dev
 
-# 클라이언트만 실행 (http://localhost:3000)
+# Run individually
+pnpm dev:client  # http://localhost:3000
+pnpm dev:server  # http://localhost:3001
+```
+
+#### Supabase Development
+
+```bash
+# Start Supabase locally
+pnpm dev:supabase
+
+# Run Edge Functions locally
+pnpm dev:supabase-functions
+
+# Run client with Supabase
 pnpm dev:client
-
-# 서버만 실행 (http://localhost:3001)
-pnpm dev:server
 ```
 
-서버 실행 후 다음 URL에서 서비스를 확인할 수 있습니다:
+#### Endpoints
 
-- **클라이언트**: http://localhost:3000
-- **서버 API**: http://localhost:3001
-- **API 문서**: http://localhost:3001/documentation
+- **Frontend**: http://localhost:3000
+- **API Server**: http://localhost:3001
+- **API Docs**: http://localhost:3001/documentation
+- **Supabase Studio**: http://localhost:54323
 
-### 코드 품질 관리
+### Scripts
 
 ```bash
-# 린트 실행
-pnpm lint
+# Code Quality
+pnpm lint          # Run ESLint
+pnpm lint:fix      # Fix linting issues
+pnpm format        # Format code with Prettier
 
-# 린트 후 자동 수정
-pnpm lint:fix
+# Testing
+pnpm test          # Run tests
+pnpm test:watch    # Watch mode
+pnpm test:coverage # Coverage report
 
-# 코드 포맷팅
-pnpm format
+# Building
+pnpm build         # Build all packages
+pnpm build:client  # Build frontend only
 ```
 
-### 테스트
+### Deployment
+
+#### Docker
 
 ```bash
-# 테스트 실행
-pnpm test
-
-# 테스트 감시 모드
-pnpm test:watch
-
-# 테스트 커버리지 보고서
-pnpm test:coverage
-```
-
-### 빌드
-
-```bash
-# 모든 패키지 빌드
-pnpm build
-```
-
-### Docker로 실행
-
-Docker를 사용하여 실행할 때도 환경 변수 설정이 필요합니다:
-
-```bash
-# .env 파일이 있는지 확인 후 실행
-# 프로덕션 빌드 및 실행
+# Production build and run
 docker-compose up --build
 
-# 개발 환경에서 실행
+# Development environment
 docker-compose up --build dev
 ```
 
-## API 엔드포인트
+#### Supabase
 
-### 채팅 API
+```bash
+# Automated deployment
+./deploy.sh
 
-- **POST** `/api/chat` - 일반 채팅 메시지 전송
-- **POST** `/api/chat/stream` - 스트리밍 채팅 응답
-- **GET** `/api/conversations` - 대화 목록 조회
-- **GET** `/api/conversations/:id` - 특정 대화 조회
+# Manual deployment
+supabase link --project-ref YOUR_PROJECT_ID
+pnpm migrate:db
+pnpm deploy:functions
+supabase secrets set OPENAI_API_KEY="your-key"
+pnpm build:client
+```
 
-### 테스트 API
+## API Reference
 
-- **GET** `/api/test/openai` - OpenAI API 연결 및 설정 테스트
-- **GET** `/api/test/health` - 서버 상태 확인
+### Chat Endpoints
 
-### 환경 변수
+- **POST** `/api/chat` - Send chat message
+- **POST** `/api/chat/sse` - Streaming chat with SSE
+- **GET** `/api/threads` - List conversation threads
+- **GET** `/api/threads/:id` - Get specific thread
+- **POST** `/api/threads` - Create new thread
 
-| 변수명               | 설명                  | 기본값        | 필수 여부 |
-| -------------------- | --------------------- | ------------- | --------- |
-| `OPENAI_API_KEY`     | OpenAI API 키         | -             | 필수      |
-| `OPENAI_MODEL`       | 사용할 OpenAI 모델    | `gpt-4o-mini` | 선택      |
-| `OPENAI_MAX_TOKENS`  | 최대 완성 토큰 수     | `1000`        | 선택      |
-| `OPENAI_TEMPERATURE` | 응답 창의성 (0.0-2.0) | `0.7`         | 선택      |
+### Supabase Edge Functions
 
-## 개발 가이드
+- `/functions/v1/chat` - Chat completion
+- `/functions/v1/stream` - Streaming responses
+- `/functions/v1/threads` - Thread management
 
-### OpenAI 모델 설정 변경
+### Health Checks
 
-기본적으로 `gpt-4o-mini` 모델을 사용합니다. 다른 모델을 사용하려면 `.env` 파일에서 변경할 수 있습니다:
+- **GET** `/api/test/openai` - Test OpenAI connection
+- **GET** `/api/test/health` - Server health check
+
+### Environment Variables
+
+| Variable                 | Description                   | Default       | Required |
+| ------------------------ | ----------------------------- | ------------- | -------- |
+| `OPENAI_API_KEY`         | OpenAI API key                | -             | Yes      |
+| `OPENAI_MODEL`           | OpenAI model to use           | `gpt-4o-mini` | No       |
+| `OPENAI_MAX_TOKENS`      | Max completion tokens         | `1000`        | No       |
+| `OPENAI_TEMPERATURE`     | Response creativity (0.0-2.0) | `0.7`         | No       |
+| `VITE_SUPABASE_URL`      | Supabase project URL          | -             | No\*     |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon key             | -             | No\*     |
+
+\*Required for Supabase deployment
+
+## Architecture
+
+This project follows **Feature-Sliced Design (FSD)** principles:
+
+```
+src/
+├── app/          # Application layer (providers, router)
+├── pages/        # Pages layer (route components)
+├── features/     # Feature layer (business logic)
+│   ├── chat/     # Chat functionality
+│   ├── thread/   # Thread management
+│   └── auth/     # Authentication
+├── entities/     # Entities layer (data models)
+├── shared/       # Shared layer (UI components, utils)
+└── widgets/      # Widgets layer (complex UI blocks)
+```
+
+### State Management
+
+- **XState**: Complex state machines for chat flow
+- **Zustand**: Simple UI state management
+- **TanStack Query**: Server state management
+
+### Key Features
+
+- **Real-time Streaming**: SSE-based message streaming
+- **Thread Management**: Organized conversation handling
+- **Error Boundaries**: Comprehensive error handling
+- **Responsive Design**: Mobile-first approach
+- **Performance**: Optimized rendering and caching
+
+### Development Guidelines
+
+#### Adding New Components
+
+Follow FSD structure:
+
+```
+features/chat/ui/MessageInput/
+├── index.tsx              # Component implementation
+├── MessageInput.test.tsx  # Tests
+└── MessageInput.stories.tsx # Storybook stories
+```
+
+#### OpenAI Model Configuration
 
 ```env
-# 사용 가능한 모델들
-OPENAI_MODEL=gpt-4o-mini      # 기본값 (빠르고 저렴)
-OPENAI_MODEL=gpt-3.5-turbo    # 빠른 응답
-OPENAI_MODEL=gpt-4            # 고품질 응답
-OPENAI_MODEL=gpt-4-turbo      # 더 긴 컨텍스트
+# Available models
+OPENAI_MODEL=gpt-4o-mini    # Default (fast & cost-effective)
+OPENAI_MODEL=gpt-3.5-turbo  # Fast responses
+OPENAI_MODEL=gpt-4          # High quality
+OPENAI_MODEL=gpt-4-turbo    # Extended context
 ```
 
-### 테스트 및 디버깅
+## Troubleshooting
 
-프로젝트는 OpenAI 설정을 검증하기 위한 여러 도구를 제공합니다:
+### Common Issues
 
-#### 1. 명령줄 테스트
+1. **OpenAI API Key Errors**
 
-```bash
-cd packages/server
-pnpm test:openai
-```
+    - Verify `.env` file exists in project root
+    - Check API key starts with `sk-`
+    - Ensure sufficient credits in OpenAI account
+    - Run: `cd packages/server && pnpm test:openai`
 
-#### 2. HTTP 엔드포인트 테스트
+2. **Server Startup Errors**
 
-```bash
-# 서버 실행 후
-curl http://localhost:3001/api/test/openai
+    - Verify Node.js v16+
+    - Run `pnpm install` to install dependencies
+    - Test OpenAI setup: `pnpm test:openai`
 
-# 또는 브라우저에서
-# http://localhost:3001/api/test/openai
-```
+3. **Supabase Deployment Issues**
 
-#### 3. 응답 예시
+    - Check project ID and access token
+    - Verify Edge Function secrets are set
+    - Review Edge Function logs in Supabase Dashboard
 
-성공적인 설정 시:
+4. **CORS Errors**
+    - Check CORS configuration in server settings
+    - Verify allowed origins match your domain
 
-```json
-{
-    "success": true,
-    "message": "OpenAI API connection successful",
-    "model": "gpt-4o-mini",
-    "timestamp": "2023-07-24T08:30:00.000Z"
-}
-```
+### Debug Endpoints
 
-실패 시:
+- **OpenAI Test**: `http://localhost:3001/api/test/openai`
+- **Health Check**: `http://localhost:3001/api/test/health`
+- **Supabase Studio**: `http://localhost:54323`
 
-```json
-{
-    "success": false,
-    "error": "Invalid OpenAI API key. Please check your OPENAI_API_KEY environment variable.",
-    "timestamp": "2023-07-24T08:30:00.000Z"
-}
-```
+## Contributing
 
-### 컴포넌트 추가하기
+1. Follow Feature-Sliced Design principles
+2. Add JSDoc comments for components and functions
+3. Write tests for new features
+4. Update documentation for API changes
+5. Follow existing code style and conventions
 
-새로운 컴포넌트를 추가할 때는 다음 구조를 따라주세요:
+## License
 
-```
-src/components/ComponentName/
-├── index.tsx           # 컴포넌트 코드
-├── ComponentName.test.tsx  # 테스트 코드
-└── ComponentName.module.css  # (선택적) 스타일
-```
-
-### 커스텀 훅 개발하기
-
-커스텀 훅은 다음 구조를 따라주세요:
-
-```
-src/hooks/useHookName.ts
-src/hooks/useHookName.test.ts
-```
-
-## 문제 해결
-
-### 자주 발생하는 문제
-
-1. **OpenAI API 키 오류**
-
-    - `.env` 파일이 프로젝트 루트에 있는지 확인
-    - API 키가 `sk-`로 시작하는지 확인
-    - 계정에 충분한 크레딧이 있는지 확인
-    - **테스트 명령 실행**: `cd packages/server && pnpm test:openai`
-
-2. **서버 시작 오류**
-
-    - Node.js 버전이 16 이상인지 확인
-    - `pnpm install`로 의존성이 모두 설치되었는지 확인
-    - OpenAI 설정이 올바른지 테스트: `pnpm test:openai`
-
-3. **API 응답 오류**
-    - `/api/test/openai` 엔드포인트로 연결 상태 확인
-    - 브라우저에서 `http://localhost:3001/api/test/openai` 접속하여 상태 확인
-
-## 문서화
-
-- 각 컴포넌트와 중요 함수에는 JSDoc 주석을 추가해주세요.
-- API 변경 사항은 이 README.md 파일을 업데이트해주세요.
+This project is licensed under the MIT License.
