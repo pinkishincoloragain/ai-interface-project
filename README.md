@@ -208,6 +208,88 @@ pnpm build:client
 
 \*Required for Supabase deployment
 
+## Infrastructure Architecture
+
+```mermaid
+graph TB
+    %% Client Layer
+    subgraph "Frontend (Vite + React)"
+        Client[React Client<br/>Vite + TypeScript<br/>TailwindCSS]
+        Router[TanStack Router]
+        StateManager[State Management<br/>XState + Zustand]
+    end
+
+    %% Authentication Layer
+    subgraph "Authentication"
+        Auth[Supabase Auth<br/>Email/Password<br/>JWT Tokens]
+    end
+
+    %% API Gateway / Edge Functions
+    subgraph "Supabase Edge Functions (Deno)"
+        ChatFunc["/functions/v1/chat"<br/>OpenAI Integration<br/>Non-streaming]
+        StreamFunc["/functions/v1/stream"<br/>OpenAI Streaming<br/>SSE Response]
+        ThreadsFunc["/functions/v1/threads"<br/>CRUD Operations<br/>Thread Management]
+        MessagesFunc["/functions/v1/messages"<br/>Message Storage<br/>Thread Association]
+    end
+
+    %% External Services
+    subgraph "External APIs"
+        OpenAI[OpenAI API<br/>GPT-4o-mini<br/>Chat Completions]
+    end
+
+    %% Database Layer
+    subgraph "Supabase Backend"
+        DB[(PostgreSQL Database)]
+        subgraph "Tables"
+            ThreadsTable[threads<br/>- id, title, user_id<br/>- created_at, updated_at]
+            MessagesTable[messages<br/>- id, thread_id, user_id<br/>- role, content, created_at]
+            UsersTable[auth.users<br/>Managed by Supabase Auth]
+        end
+        RLS[Row Level Security<br/>User Data Isolation]
+    end
+
+    %% Data Flow Connections
+    Client --> Router
+    Router --> StateManager
+    StateManager --> Auth
+
+    Client -->|"REST/SSE"| ChatFunc
+    Client -->|"SSE Streaming"| StreamFunc
+    Client -->|"CRUD"| ThreadsFunc
+    Client -->|"CRUD"| MessagesFunc
+
+    Auth -->|"JWT Verification"| ChatFunc
+    Auth -->|"JWT Verification"| StreamFunc
+    Auth -->|"JWT Verification"| ThreadsFunc
+    Auth -->|"JWT Verification"| MessagesFunc
+
+    ChatFunc -->|"API Calls"| OpenAI
+    StreamFunc -->|"Streaming API"| OpenAI
+
+    ThreadsFunc -->|"SQL Queries"| ThreadsTable
+    MessagesFunc -->|"SQL Queries"| MessagesTable
+    ChatFunc -->|"Message Storage"| MessagesTable
+    StreamFunc -->|"Message Storage"| MessagesTable
+
+    ThreadsTable --> DB
+    MessagesTable --> DB
+    UsersTable --> DB
+    DB --> RLS
+
+    %% Styling
+    classDef frontend fill:#e1f5fe
+    classDef backend fill:#f3e5f5
+    classDef database fill:#e8f5e8
+    classDef external fill:#fff3e0
+    classDef auth fill:#fce4ec
+
+    class Client,Router,StateManager frontend
+    class ChatFunc,StreamFunc,ThreadsFunc,MessagesFunc backend
+    class DB,ThreadsTable,MessagesTable,UsersTable,RLS database
+    class OpenAI external
+    class Auth auth
+```
+
 ## Architecture
 
 This project follows **Feature-Sliced Design (FSD)** principles:
