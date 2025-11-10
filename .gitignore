@@ -5,3 +5,4 @@ dist
 .vscode
 *.log
 deploy-functions.sh
+temp-lambda/
