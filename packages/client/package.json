@@ -25,7 +25,6 @@
         "rehype-highlight": "^7.0.2",
         "rehype-raw": "^7.0.0",
         "remark-gfm": "^4.0.1",
-        "shared": "workspace:*",
         "uuid": "^9.0.0",
         "xstate": "^5.21.0",
         "zod": "^4.0.10",

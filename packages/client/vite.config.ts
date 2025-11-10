@@ -39,7 +39,7 @@ export default defineConfig({
                         // eslint-disable-next-line no-console
                         console.log('← Proxy Response:', proxyRes.statusCode, req.url);
                     });
-                    proxy.on('proxyReqError', (err, req, res) => {
+                    proxy.on('proxyReqError', (err: Error, req: any, res: any) => {
                         // eslint-disable-next-line no-console
                         console.log('Proxy request error:', err.message, 'for', req.url);
                         if (!res.headersSent) {
