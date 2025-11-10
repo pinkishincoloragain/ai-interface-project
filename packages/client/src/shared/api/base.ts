@@ -4,7 +4,9 @@ export abstract class BaseApiClient {
     protected apiBase: string;
 
     constructor() {
-        this.apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+        // Use Supabase Edge Functions instead of custom server
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://127.0.0.1:54321';
+        this.apiBase = `${supabaseUrl}/functions/v1`;
     }
 
     protected async getAuthHeaders(): Promise<Record<string, string>> {
