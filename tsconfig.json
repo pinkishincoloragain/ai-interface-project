@@ -15,5 +15,5 @@
             "shared/*": ["packages/shared/src/*"]
         }
     },
-    "exclude": ["supabase/functions/**/*"]
+    "exclude": ["node_modules", "**/node_modules", "**/dist"]
 }
