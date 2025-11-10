@@ -9,22 +9,18 @@
     "scripts": {
         "dev:client": "pnpm --filter client dev",
         "dev:server": "pnpm --filter server dev",
-        "dev": "concurrently \"pnpm dev:supabase\" \"pnpm dev:server\" \"pnpm dev:client\" \"pnpm dev:dashboards\"",
-        "dev:supabase": "npx supabase start",
-        "dev:supabase-functions": "npx supabase functions serve",
-        "stop:supabase": "docker stop $(docker ps -q --filter \"name=supabase\")",
-        "dev:dashboards": "open dashboard.html && open swagger-dashboard.html",
+        "dev": "concurrently \"pnpm dev:server\" \"pnpm dev:client\"",
         "build:client": "pnpm --filter client build",
         "build:server": "pnpm --filter server build",
         "build": "pnpm build:server && pnpm build:client",
-        "deploy": "./deploy.sh",
-        "migrate:db": "npx supabase db push",
-        "deploy:functions": "npx supabase functions deploy --no-verify-jwt",
+        "deploy": "./deploy-terraform.sh",
+        "deploy:cdk": "./deploy.sh",
         "test-openai": "pnpm --filter server test:openai",
         "lint": "eslint \"**/*.{ts,tsx}\"",
         "lint:fix": "eslint \"**/*.{ts,tsx}\" --fix",
-        "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
-        "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,md}\"",
+        "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\" && (cd terraform && terraform fmt)",
+        "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,md}\" && (cd terraform && terraform fmt -check)",
+        "format:terraform": "cd terraform && terraform fmt",
         "clean": "rimraf node_modules **/*/node_modules **/*/dist",
         "postinstall": "husky install",
         "prepare": "husky install"
@@ -52,7 +48,8 @@
     },
     "dependencies": {
         "@fastify/swagger": "^9.5.0",
-        "@fastify/swagger-ui": "^5.2.2"
+        "@fastify/swagger-ui": "^5.2.2",
+        "xstate": "^5.0.0"
     },
     "packageManager": "pnpm@8.15.4+sha1.c85a4305534f76d461407b59277b954bac97b5c4"
 }

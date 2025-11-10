@@ -1,24 +1,24 @@
-import { supabase } from '@/shared';
+import { sessionStorage } from '@/shared/lib/sessionStorage';
+import { createAuthorizationHeader } from '@/shared/lib/headers';
 
 export abstract class BaseApiClient {
     protected apiBase: string;
 
     constructor() {
+        // Use AWS Lambda API Gateway endpoint
         this.apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
     }
 
     protected async getAuthHeaders(): Promise<Record<string, string>> {
-        const {
-            data: { session },
-        } = await supabase.auth.getSession();
+        const session = sessionStorage.getSession();
 
-        if (!session) {
+        if (!session || !sessionStorage.isSessionValid(session)) {
             throw new Error('Not authenticated');
         }
 
         return {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
+            Authorization: createAuthorizationHeader(session.access_token),
         };
     }
 

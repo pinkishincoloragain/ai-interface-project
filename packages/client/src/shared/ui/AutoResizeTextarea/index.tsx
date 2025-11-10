@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, forwardRef } from 'react';
+import React, { useEffect, useRef, forwardRef, useCallback } from 'react';
 
 interface AutoResizeTextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'rows'> {
     maxHeight?: number;
@@ -18,7 +18,7 @@ export const AutoResizeTextarea = forwardRef<HTMLTextAreaElement, AutoResizeText
             }
         }, [combinedRef]);
 
-        const adjustHeight = () => {
+        const adjustHeight = useCallback(() => {
             const textarea = typeof combinedRef === 'object' ? combinedRef.current : null;
             if (!textarea) return;
 
@@ -27,7 +27,7 @@ export const AutoResizeTextarea = forwardRef<HTMLTextAreaElement, AutoResizeText
             textarea.style.height = `${newHeight}px`;
 
             onHeightChange?.(newHeight);
-        };
+        }, [combinedRef, minHeight, maxHeight, onHeightChange]);
 
         const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
             adjustHeight();
@@ -41,7 +41,7 @@ export const AutoResizeTextarea = forwardRef<HTMLTextAreaElement, AutoResizeText
 
         useEffect(() => {
             adjustHeight();
-        }, [props.value, maxHeight, minHeight]);
+        }, [props.value, maxHeight, minHeight, adjustHeight]);
 
         return (
             <textarea

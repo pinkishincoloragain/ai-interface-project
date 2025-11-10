@@ -7,7 +7,7 @@ function App() {
     const { user, loading, signOut } = useAuth();
     const [activeThreadId, setActiveThreadId] = useState<string | undefined>();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-    const threads = useThreadStore((state) => state.threads);
+    const threads = useThreadStore((state: any) => state.threads);
 
     // All hooks must be at the top level
     const handleThreadSelect = useCallback((threadId: string) => {
@@ -55,7 +55,9 @@ function App() {
             <div className="flex-1 flex flex-col min-w-0">
                 <div className="bg-gray-900 border-b border-gray-700 px-6 py-4 flex-shrink-0 flex justify-between items-center">
                     <h1 className="text-xl font-semibold text-gray-100">
-                        {activeThreadId ? threads.find((t) => t.id === activeThreadId)?.title || 'Chat' : 'New Chat'}
+                        {activeThreadId
+                            ? threads.find((t: any) => t.id === activeThreadId)?.title || 'Chat'
+                            : 'New Chat'}
                     </h1>
                     <button onClick={handleSignOut} className="text-sm text-gray-400 hover:text-gray-200">
                         Sign Out

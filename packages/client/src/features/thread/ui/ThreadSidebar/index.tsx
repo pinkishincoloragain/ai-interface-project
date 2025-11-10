@@ -1,9 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Sidebar } from '@/shared/ui/Sidebar';
 import { ThreadList } from '../ThreadList';
-import { ThreadListCollapsed } from '../ThreadListCollapsed';
-import { ThreadSidebarHeader } from '../ThreadSidebarHeader';
-import { ThreadSidebarFooter } from '../ThreadSidebarFooter';
+import { ThreadListCollapsed, ThreadSidebarFooter, ThreadSidebarHeader } from '@/features/thread/ui';
 import type { ThreadItemData } from '../ThreadItem';
 
 export interface ThreadWithMessages {

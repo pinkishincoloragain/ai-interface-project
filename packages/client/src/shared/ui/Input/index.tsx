@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { isEmpty, phrases, trimMessage } from 'shared';
+import { isEmpty, trimMessage } from '../../../utils/text-utils';
+import { phrases } from '../../../utils/phrases';
 
 interface InputProps {
     onSendMessage: (message: string) => void;

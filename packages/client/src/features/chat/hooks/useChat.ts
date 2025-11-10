@@ -17,7 +17,7 @@ export const useChat = (threadId?: string) => {
     const handleSendMessage = useCallback(
         async (content: string): Promise<string | undefined> =>
             await chatActions.sendMessage(content, threadSync.currentThreadId),
-        [chatActions.sendMessage, threadSync.currentThreadId]
+        [chatActions, threadSync.currentThreadId]
     );
 
     return {

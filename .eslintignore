@@ -13,6 +13,10 @@ tailwind.config.js
 vite.config.ts
 jest.config.js
 
+# Supabase 함수 (Deno 환경)
+supabase/functions/
+supabase/functions/**/*.ts
+
 # 기타
 coverage/
 .vscode/

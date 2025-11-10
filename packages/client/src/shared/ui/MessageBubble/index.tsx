@@ -3,7 +3,7 @@ import React from 'react';
 interface MessageBubbleProps {
     children: React.ReactNode;
     variant?: 'user' | 'assistant';
-    status?: 'sending' | 'error';
+    status?: 'sending' | 'success' | 'error';
     className?: string;
 }
 

@@ -112,7 +112,7 @@ function parseSSELine(line: string): StreamingEvent | null {
                 messageId: parsed.id,
                 conversationId: parsed.conversationId,
             };
-        } catch (error) {
+        } catch {
             return {
                 type: 'ERROR',
                 error: new Error(`Failed to parse SSE data: ${data}`),

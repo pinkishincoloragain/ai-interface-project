@@ -1,34 +1,74 @@
 import { useState, useEffect } from 'react';
-import { User } from '@supabase/supabase-js';
+import { User, Session } from '@/shared/types/auth';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/shared/lib/supabase';
+import { authApiClient } from '@/shared/api/authApi';
+import { sessionStorage } from '@/shared/lib/sessionStorage';
 import { useChatStore } from '@/features/chat/model/store';
 import { useThreadStore } from '@/features/thread/model/store';
 import { useLoginState } from './store';
 
 export function useAuth() {
     const [user, setUser] = useState<User | null>(null);
+    const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
     const [previousUserId, setPreviousUserId] = useState<string | null>(null);
     const queryClient = useQueryClient();
     const { isLoggedIn, hasAttemptedAutoLogin, setLoggedIn, setAttemptedAutoLogin, reset } = useLoginState();
 
+    // Clear application state
+    const clearApplicationState = () => {
+        // Clear chat store
+        useChatStore.getState().clearMessages();
+        useChatStore.getState().setCurrentThreadId(undefined);
+        useChatStore.getState().setLoading(false);
+        useChatStore.getState().setMessagesInitialized(false);
+
+        // Clear thread store
+        useThreadStore.getState().clearThreads();
+
+        // Clear React Query cache
+        queryClient.clear();
+    };
+
     useEffect(() => {
-        // Only auto-login if user hasn't attempted auto-login and is marked as logged in
+        // Auto-login check
         if (!hasAttemptedAutoLogin) {
             setAttemptedAutoLogin(true);
+
             if (isLoggedIn) {
-                // Get initial session only if user should be logged in
-                supabase.auth.getSession().then(({ data: { session } }) => {
-                    if (session?.user) {
-                        setUser(session.user);
-                        setPreviousUserId(session.user.id);
-                    } else {
-                        // No valid session, reset login state
-                        setLoggedIn(false);
-                    }
+                // Try to restore session from localStorage
+                const storedSession = sessionStorage.getSession();
+
+                if (storedSession && sessionStorage.isSessionValid(storedSession)) {
+                    // Verify session with server
+                    authApiClient
+                        .getUser(storedSession.access_token)
+                        .then(({ user, error }) => {
+                            if (user && !error) {
+                                setUser(user);
+                                setSession(storedSession);
+                                setPreviousUserId(user.id);
+                            } else {
+                                // Invalid session, clear everything
+                                sessionStorage.removeSession();
+                                setLoggedIn(false);
+                                clearApplicationState();
+                            }
+                            setLoading(false);
+                        })
+                        .catch(() => {
+                            // Network error or server error, clear session
+                            sessionStorage.removeSession();
+                            setLoggedIn(false);
+                            clearApplicationState();
+                            setLoading(false);
+                        });
+                } else {
+                    // No valid session, reset login state
+                    setLoggedIn(false);
+                    clearApplicationState();
                     setLoading(false);
-                });
+                }
             } else {
                 // User should start logged out
                 setLoading(false);
@@ -37,77 +77,65 @@ export function useAuth() {
             // Already attempted auto-login
             setLoading(false);
         }
-
-        // Listen for auth changes
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange((event, session) => {
-            const currentUserId = session?.user?.id ?? null;
-
-            // Clear all application state when user signs out or changes
-            if (event === 'SIGNED_OUT' || (previousUserId && currentUserId && previousUserId !== currentUserId)) {
-                // Clear chat store
-                useChatStore.getState().clearMessages();
-                useChatStore.getState().setCurrentThreadId(undefined);
-                useChatStore.getState().setLoading(false);
-                useChatStore.getState().setMessagesInitialized(false);
-
-                // Clear thread store
-                useThreadStore.getState().clearThreads();
-
-                // Clear React Query cache
-                queryClient.clear();
-
-                // Reset login state on sign out
-                if (event === 'SIGNED_OUT') {
-                    reset();
-                }
-            }
-
-            // Update previous user ID
-            setPreviousUserId(currentUserId);
-
-            setUser(session?.user ?? null);
-            setLoading(false);
-        });
-
-        return () => subscription.unsubscribe();
-    }, [previousUserId, queryClient, hasAttemptedAutoLogin, isLoggedIn, setAttemptedAutoLogin, setLoggedIn, reset]);
+    }, [hasAttemptedAutoLogin, isLoggedIn, setAttemptedAutoLogin, setLoggedIn, queryClient]);
 
     const signIn = async (email: string, password: string) => {
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+        const { user, session, error } = await authApiClient.login(email, password);
 
-        if (data.user && !error) {
+        if (user && session && !error) {
+            setUser(user);
+            setSession(session);
+            sessionStorage.setSession(session);
             setLoggedIn(true);
+
+            // Check if user changed
+            const currentUserId = user.id;
+            if (previousUserId && previousUserId !== currentUserId) {
+                clearApplicationState();
+            }
+            setPreviousUserId(currentUserId);
         }
 
-        return { data, error };
+        return { data: { user, session }, error: error ? { message: error } : null };
     };
 
     const signUp = async (email: string, password: string) => {
-        const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-        });
+        const { user, session, error } = await authApiClient.signup(email, password);
 
-        if (data.user && !error) {
+        if (user && session && !error) {
+            setUser(user);
+            setSession(session);
+            sessionStorage.setSession(session);
             setLoggedIn(true);
+            setPreviousUserId(user.id);
         }
 
-        return { data, error };
+        return { data: { user, session }, error: error ? { message: error } : null };
     };
 
     const signOut = async () => {
-        // State clearing is now handled by the auth state change listener
-        const { error } = await supabase.auth.signOut();
-        return { error };
+        let apiError = null;
+
+        // Call logout API if we have a session
+        if (session?.access_token) {
+            const { error } = await authApiClient.logout(session.access_token);
+            apiError = error;
+        }
+
+        // Clear local state regardless of API result
+        setUser(null);
+        setSession(null);
+        sessionStorage.removeSession();
+        reset();
+        clearApplicationState();
+        setPreviousUserId(null);
+
+        return { error: apiError ? { message: apiError } : null };
     };
 
     return {
         user,
+        session,
         loading,
         signIn,
         signUp,

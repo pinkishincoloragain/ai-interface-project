@@ -14,12 +14,12 @@ import html from 'highlight.js/lib/languages/xml';
 import 'highlight.js/styles/github-dark.css';
 import {
     getCodeBlockStyle,
-    getCommonPrefixLength,
     getInlineCodeStyle,
     getMarkdownContainerStyle,
     getMarkdownStyles,
     TokenState,
-} from 'shared';
+} from '../../../utils/markdown-utils';
+import { getCommonPrefixLength } from '../../../utils/text-utils';
 
 // Register highlight.js languages
 hljs.registerLanguage('javascript', javascript);

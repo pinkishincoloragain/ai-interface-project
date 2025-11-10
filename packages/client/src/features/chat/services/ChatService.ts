@@ -2,7 +2,6 @@ import { chatApi } from '../api/chatApi';
 import { messageService, MessageService } from './MessageService';
 import { streamingService, StreamingService } from './StreamingService';
 import { useChatStore } from '../model/store';
-import { ErrorType } from '../lib/errors';
 
 export interface SendMessageParams {
     content: string;
@@ -74,14 +73,14 @@ export class ChatService {
                     onMessage: (content, isDone, messageId) => {
                         this.messageService.updateMessageContent(messageId, content, isDone);
                     },
-                    onError: (event) => {
+                    onError: (errorMessage) => {
                         setLoading(false);
 
                         // Handle abort errors specially - preserve content instead of marking as error
-                        if (event.error.type === ErrorType.ABORT_ERROR) {
+                        if (errorMessage.includes('abort') || errorMessage.includes('취소')) {
                             this.messageService.markMessageAsStopped(assistantPlaceholder.id);
                         } else {
-                            this.messageService.markMessageAsError(assistantPlaceholder.id, event.userMessage);
+                            this.messageService.markMessageAsError(assistantPlaceholder.id, errorMessage);
                         }
 
                         this.currentStreamingMessageId = null;

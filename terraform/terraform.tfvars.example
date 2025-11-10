@@ -1,0 +1,12 @@
+# Copy this file to terraform.tfvars and modify as needed
+
+# AWS Configuration
+aws_region = "us-east-1"
+
+# Environment Configuration
+environment  = "dev"
+project_name = "seamlessai"
+
+# Build Paths (these are set automatically by the deploy script)
+# lambda_zip_path      = "../dist/lambda.zip"
+# frontend_build_path  = "../packages/client/dist"

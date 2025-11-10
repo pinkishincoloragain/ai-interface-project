@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { Thread } from '@/entities/thread';
 
+export type { Thread };
+
 export interface ThreadState {
     threads: Thread[];
     selectedThreadId?: string;
