@@ -14,6 +14,9 @@ importers:
       '@fastify/swagger-ui':
         specifier: ^5.2.2
         version: 5.2.2
+      xstate:
+        specifier: ^5.0.0
+        version: 5.21.0
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^6.6.3
@@ -123,9 +126,6 @@ importers:
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1
-      shared:
-        specifier: workspace:*
-        version: link:../shared
       uuid:
         specifier: ^9.0.0
         version: 9.0.1
