@@ -1,0 +1,9 @@
+{
+    "compilerOptions": {
+        "allowJs": true,
+        "lib": ["deno.window"],
+        "strict": false,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true
+    }
+}
