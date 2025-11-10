@@ -39,8 +39,8 @@ VERCEL_PROJECT_ID=your_frontend_project_id_here
 VERCEL_SERVER_PROJECT_ID=your_backend_project_id_here
 
 # Supabase Configuration (Production)
-VITE_SUPABASE_URL=https://mcfcfbdhtkjxgqgawvfp.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jZmNmYmRodGtqeGdxZ2F3dmZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4MjY4OTQsImV4cCI6MjA3MDQwMjg5NH0.Tit5DvFiFGyjULx68sMR9Pxu0Wjl-b5bXlf1R693aqU
+VITE_SUPABASE_URL=your_supabase_url_here
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
 # OpenAI Configuration (for server)
 OPENAI_API_KEY=your_openai_api_key_here
@@ -52,7 +52,7 @@ The project has environment-specific configurations:
 
 #### Local Development
 
-- Uses local Supabase (`http://127.0.0.1:54321`)
+- Uses local Supabase (`http://localhost:54321`)
 - Environment files: `.env` and `packages/client/.env`
 
 #### Production Deployment

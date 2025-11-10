@@ -4,14 +4,5 @@
             "source": "/(.*)",
             "destination": "/index.html"
         }
-    ],
-    "env": {
-        "VITE_SUPABASE_URL": "https://mcfcfbdhtkjxgqgawvfp.supabase.co",
-        "VITE_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jZmNmYmRodGtqeGdxZ2F3dmZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4MjY4OTQsImV4cCI6MjA3MDQwMjg5NH0.Tit5DvFiFGyjULx68sMR9Pxu0Wjl-b5bXlf1R693aqU"
-    },
-    "functions": {
-        "app/**": {
-            "includeFiles": "dist/**"
-        }
-    }
+    ]
 }

@@ -5,7 +5,7 @@ export abstract class BaseApiClient {
 
     constructor() {
         // Use Supabase Edge Functions instead of custom server
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://127.0.0.1:54321';
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://127.0.0.1:54321';
         this.apiBase = `${supabaseUrl}/functions/v1`;
     }
 

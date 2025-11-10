@@ -9,10 +9,7 @@
     - Project ID: `mcfcfbdhtkjxgqgawvfp`
     - Dashboard: https://supabase.com/dashboard/project/mcfcfbdhtkjxgqgawvfp
 
-2. **Environment Variables**:
-
-    - SUPABASE_URL: `https://mcfcfbdhtkjxgqgawvfp.supabase.co`
-    - SUPABASE_ANON_KEY: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jZmNmYmRodGtqeGdxZ2F3dmZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4MjY4OTQsImV4cCI6MjA3MDQwMjg5NH0.Tit5DvFiFGyjULx68sMR9Pxu0Wjl-b5bXlf1R693aqU`
+2. **Environment Variables**: Available in Supabase dashboard
 
 3. **TypeScript Errors**: All fixed
 4. **Frontend Build**: Successful
@@ -36,10 +33,10 @@ vercel
 
 ### Environment Variables (Set in Vercel Dashboard):
 
-- `VITE_SUPABASE_URL`: `https://mcfcfbdhtkjxgqgawvfp.supabase.co`
-- `VITE_SUPABASE_ANON_KEY`: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jZmNmYmRodGtqeGdxZ2F3dmZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4MjY4OTQsImV4cCI6MjA3MDQwMjg5NH0.Tit5DvFiFGyjULx68sMR9Pxu0Wjl-b5bXlf1R693aqU`
-- `SUPABASE_URL`: `https://mcfcfbdhtkjxgqgawvfp.supabase.co`
-- `SUPABASE_ANON_KEY`: (same as above)
+- `VITE_SUPABASE_URL`: (from Supabase dashboard)
+- `VITE_SUPABASE_ANON_KEY`: (from Supabase dashboard)
+- `SUPABASE_URL`: (from Supabase dashboard)
+- `SUPABASE_ANON_KEY`: (from Supabase dashboard)
 - `OPENAI_API_KEY`: (your OpenAI key)
 
 ## Alternative: Manual Vercel Setup
