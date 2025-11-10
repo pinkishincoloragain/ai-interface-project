@@ -4,10 +4,10 @@ import { ChatCompletionRequest, ChatCompletionResponse, ChatMessage } from 'shar
 import { openaiService } from '../services/openai.js';
 import { fallbackService } from '../services/fallback.js';
 import { threadManager } from '../services/threadManager.js';
-import { createUserSupabaseClient, supabase } from '../services/supabase.js';
+import { createUserSupabaseClient } from '../services/supabase.js';
 import OpenAI from 'openai';
 
-async function getUserFromRequest(request: any) {
+async function getUserFromRequest(request: { headers: { authorization?: string } }) {
     const authHeader = request.headers.authorization;
     if (!authHeader) {
         throw new Error('No authorization header');
@@ -34,15 +34,15 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             // Get authenticated user
             let user, userClient;
             try {
-                const auth = await getUserFromRequest(request);
-                user = auth.user;
-                userClient = auth.userClient;
-            } catch (error) {
+                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
+                user = authUser;
+                userClient = authUserClient;
+            } catch {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
 
             // Get threads with message counts
-            const { data: threads, error } = await userClient
+            const { data: threads, error: threadsError } = await userClient
                 .from('threads')
                 .select(
                     `
@@ -53,8 +53,8 @@ export function registerChatRoutes(fastify: FastifyInstance) {
                 .eq('user_id', user.id)
                 .order('updated_at', { ascending: false });
 
-            if (error) {
-                console.error('Database error:', error);
+            if (threadsError) {
+                console.error('Database error:', threadsError);
                 return reply.code(500).send({ error: 'Failed to fetch threads' });
             }
 
@@ -81,21 +81,21 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             // Get authenticated user
             let user, userClient;
             try {
-                const auth = await getUserFromRequest(request);
-                user = auth.user;
-                userClient = auth.userClient;
-            } catch (error) {
+                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
+                user = authUser;
+                userClient = authUserClient;
+            } catch {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
 
-            const { data: thread, error } = await userClient
+            const { data: thread, error: threadError } = await userClient
                 .from('threads')
                 .select('*')
                 .eq('id', id)
                 .eq('user_id', user.id)
                 .single();
 
-            if (error || !thread) {
+            if (threadError || !thread) {
                 return reply.code(404).send({ error: 'Thread not found' });
             }
 
@@ -112,14 +112,14 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             // Get authenticated user
             let user, userClient;
             try {
-                const auth = await getUserFromRequest(request);
-                user = auth.user;
-                userClient = auth.userClient;
-            } catch (error) {
+                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
+                user = authUser;
+                userClient = authUserClient;
+            } catch {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
 
-            const { data: thread, error } = await userClient
+            const { data: thread, error: createError } = await userClient
                 .from('threads')
                 .insert({
                     title: 'New Chat',
@@ -128,8 +128,8 @@ export function registerChatRoutes(fastify: FastifyInstance) {
                 .select()
                 .single();
 
-            if (error || !thread) {
-                console.error('Failed to create thread:', error);
+            if (createError || !thread) {
+                console.error('Failed to create thread:', createError);
                 return reply.code(500).send({ error: 'Failed to create thread' });
             }
 
@@ -148,18 +148,22 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             // Get authenticated user
             let user, userClient;
             try {
-                const auth = await getUserFromRequest(request);
-                user = auth.user;
-                userClient = auth.userClient;
-            } catch (error) {
+                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
+                user = authUser;
+                userClient = authUserClient;
+            } catch {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
 
             // Delete thread and its messages (cascade delete is handled by DB)
-            const { error } = await userClient.from('threads').delete().eq('id', id).eq('user_id', user.id);
+            const { error: deleteError } = await userClient
+                .from('threads')
+                .delete()
+                .eq('id', id)
+                .eq('user_id', user.id);
 
-            if (error) {
-                console.error('Failed to delete thread:', error);
+            if (deleteError) {
+                console.error('Failed to delete thread:', deleteError);
                 return reply.code(500).send({ error: 'Failed to delete thread' });
             }
 
@@ -178,10 +182,10 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             // Get authenticated user
             let user, userClient;
             try {
-                const auth = await getUserFromRequest(request);
-                user = auth.user;
-                userClient = auth.userClient;
-            } catch (error) {
+                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
+                user = authUser;
+                userClient = authUserClient;
+            } catch {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
 
@@ -230,10 +234,10 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             // Get authenticated user
             let user, userClient;
             try {
-                const auth = await getUserFromRequest(request);
-                user = auth.user;
-                userClient = auth.userClient;
-            } catch (error) {
+                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
+                user = authUser;
+                userClient = authUserClient;
+            } catch {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
 
@@ -257,6 +261,86 @@ export function registerChatRoutes(fastify: FastifyInstance) {
         }
     });
 
+    // POST generate thread title from first message
+    fastify.post<{ Params: { id: string } }>('/api/threads/:id/generate-title', async (request, reply) => {
+        try {
+            const { id } = request.params;
+
+            // Get authenticated user
+            let user, userClient;
+            try {
+                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
+                user = authUser;
+                userClient = authUserClient;
+            } catch {
+                return reply.code(401).send({ error: 'Unauthorized' });
+            }
+
+            // Get thread and first user message
+            const { data: thread, error: threadError } = await userClient
+                .from('threads')
+                .select('*')
+                .eq('id', id)
+                .eq('user_id', user.id)
+                .single();
+
+            if (threadError || !thread) {
+                return reply.code(404).send({ error: 'Thread not found' });
+            }
+
+            // Get first user message
+            const { data: firstMessage, error: messageError } = await userClient
+                .from('messages')
+                .select('content')
+                .eq('thread_id', id)
+                .eq('role', 'user')
+                .order('created_at', { ascending: true })
+                .limit(1)
+                .single();
+
+            if (messageError || !firstMessage) {
+                return reply.code(404).send({ error: 'No user message found in thread' });
+            }
+
+            // Generate title using OpenAI
+            let generatedTitle: string;
+            try {
+                generatedTitle = await openaiService.generateTitle(firstMessage.content);
+            } catch {
+                // Fallback to simple title generation
+                const fallbackTitle = firstMessage.content.trim().substring(0, 47);
+                generatedTitle =
+                    fallbackTitle.length < firstMessage.content.trim().length ? fallbackTitle + '...' : fallbackTitle;
+            }
+
+            // Update thread with generated title
+            const { data: updatedThread, error: updateError } = await userClient
+                .from('threads')
+                .update({
+                    title: generatedTitle,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', id)
+                .eq('user_id', user.id)
+                .select()
+                .single();
+
+            if (updateError || !updatedThread) {
+                console.error('Failed to update thread with generated title:', updateError);
+                return reply.code(500).send({ error: 'Failed to update thread title' });
+            }
+
+            return reply.send({
+                success: true,
+                title: generatedTitle,
+                thread: updatedThread,
+            });
+        } catch (err) {
+            fastify.log.error(err);
+            return reply.code(500).send({ error: 'Failed to generate thread title' });
+        }
+    });
+
     // POST save partial message (for aborted/stopped messages)
     fastify.post<{
         Body: {
@@ -272,10 +356,10 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             // Get authenticated user
             let user, userClient;
             try {
-                const auth = await getUserFromRequest(request);
-                user = auth.user;
-                userClient = auth.userClient;
-            } catch (error) {
+                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
+                user = authUser;
+                userClient = authUserClient;
+            } catch {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
 
@@ -322,29 +406,26 @@ export function registerChatRoutes(fastify: FastifyInstance) {
     // POST send message to thread
     fastify.post<{ Body: ChatCompletionRequest & { threadId?: string } }>('/api/chat', async (request, reply) => {
         try {
-            const { messages, threadId } = request.body;
+            const { messages, threadId } = request.body as ChatCompletionRequest & { threadId?: string };
             let currentThreadId = threadId;
             let responseContent: string;
 
             // Get authenticated user
             let user, userClient;
             try {
-                const auth = await getUserFromRequest(request);
-                user = auth.user;
-                userClient = auth.userClient;
-            } catch (error) {
+                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
+                user = authUser;
+                userClient = authUserClient;
+            } catch {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
 
             // Create new thread if none provided
             if (!currentThreadId) {
-                const userMessage = messages[messages.length - 1];
-                const threadTitle = userMessage?.content?.slice(0, 50) || 'New Chat';
-
                 const { data: newThread, error: threadError } = await userClient
                     .from('threads')
                     .insert({
-                        title: threadTitle,
+                        title: 'New Chat',
                         user_id: user.id,
                     })
                     .select()
@@ -372,8 +453,8 @@ export function registerChatRoutes(fastify: FastifyInstance) {
                     if (userMessageError) {
                         console.error('Failed to save user message:', userMessageError);
                     }
-                } catch (error) {
-                    console.error('Error saving user message:', error);
+                } catch {
+                    // Error saving user message
                 }
             }
 
@@ -390,7 +471,7 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             // Generate AI response
             if (!openaiService.isInitialized()) {
                 // Fallback service
-                const fallbackMessages = messages.map((msg) => ({
+                const fallbackMessages = messages.map((msg: any) => ({
                     role: msg.role as 'user' | 'assistant' | 'system',
                     content: msg.content,
                 }));
@@ -399,10 +480,12 @@ export function registerChatRoutes(fastify: FastifyInstance) {
                 responseContent = `⚠️ OpenAI API가 설정되지 않았습니다.\n\n${fallbackResponse.content}\n\n💡 실제 AI 응답을 받으려면:\n1. .env 파일에 OPENAI_API_KEY를 설정하세요\n2. 서버를 재시작하세요`;
             } else {
                 // OpenAI API call
-                const openaiMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = messages.map((msg) => ({
-                    role: msg.role as 'user' | 'assistant' | 'system',
-                    content: msg.content,
-                }));
+                const openaiMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = messages.map(
+                    (msg: any) => ({
+                        role: msg.role as 'user' | 'assistant' | 'system',
+                        content: msg.content,
+                    })
+                );
 
                 const openaiResponse = await openaiService.createChatCompletion(openaiMessages);
 
@@ -430,9 +513,35 @@ export function registerChatRoutes(fastify: FastifyInstance) {
                         .from('threads')
                         .update({ updated_at: new Date().toISOString() })
                         .eq('id', currentThreadId);
+
+                    // Generate title after first exchange if thread title is still "New Chat"
+                    const { data: currentThread } = await userClient
+                        .from('threads')
+                        .select('title')
+                        .eq('id', currentThreadId)
+                        .single();
+
+                    if (currentThread?.title === 'New Chat') {
+                        try {
+                            const generatedTitle = await openaiService.generateTitle(userMessage.content);
+                            await userClient
+                                .from('threads')
+                                .update({ title: generatedTitle })
+                                .eq('id', currentThreadId);
+                        } catch (titleError) {
+                            console.error('Failed to generate automatic title:', titleError);
+                            // Fallback to simple title generation
+                            const fallbackTitle = userMessage.content.trim().substring(0, 47);
+                            const finalTitle =
+                                fallbackTitle.length < userMessage.content.trim().length
+                                    ? fallbackTitle + '...'
+                                    : fallbackTitle;
+                            await userClient.from('threads').update({ title: finalTitle }).eq('id', currentThreadId);
+                        }
+                    }
                 }
-            } catch (error) {
-                console.error('Error saving assistant message:', error);
+            } catch {
+                // Error saving assistant message
             }
 
             // Create bot response

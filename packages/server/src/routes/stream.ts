@@ -3,10 +3,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { ChatCompletionRequest, ChatMessage, ChatStreamChunk } from 'shared/types/chat';
 import { fallbackService, openaiService } from '../services/index.js';
 import { threadManager } from '../services/threadManager.js';
-import { createUserSupabaseClient, supabase } from '../services/supabase.js';
+import { createUserSupabaseClient } from '../services/supabase.js';
 import OpenAI from 'openai';
 
-async function getUserFromRequest(request: any) {
+async function getUserFromRequest(request: { headers: { authorization?: string } }) {
     const authHeader = request.headers.authorization;
     if (!authHeader) {
         throw new Error('No authorization header');
@@ -30,15 +30,19 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
     // 스트리밍 응답을 위한 라우트
     fastify.post<{ Body: ChatCompletionRequest }>('/api/chat/stream', async (request, reply) => {
         try {
-            const { messages, conversationId, messageId: providedMessageId } = request.body;
+            const {
+                messages,
+                conversationId,
+                messageId: providedMessageId,
+            } = request.body as ChatCompletionRequest & { conversationId?: string; messageId?: string };
 
             // Get authenticated user
             let user, userClient;
             try {
-                const auth = await getUserFromRequest(request);
-                user = auth.user;
-                userClient = auth.userClient;
-            } catch (error) {
+                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
+                user = authUser;
+                userClient = authUserClient;
+            } catch {
                 reply.code(401).send({ error: 'Unauthorized' });
                 return;
             }
@@ -48,7 +52,7 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
 
             // If no conversation ID, create a new thread
             if (!convoId) {
-                const firstUserMessage = messages.find((m) => m.role === 'user');
+                const firstUserMessage = messages.find((m: any) => m.role === 'user');
                 const threadTitle = firstUserMessage?.content?.slice(0, 50) || 'New Chat';
 
                 const { data: newThread, error: threadError } = await userClient
@@ -71,7 +75,7 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
             const lastUserMessage = messages[messages.length - 1];
             if (lastUserMessage && lastUserMessage.role === 'user') {
                 try {
-                    const { data: savedUserMessage, error } = await userClient
+                    await userClient
                         .from('messages')
                         .insert({
                             thread_id: convoId,
@@ -81,12 +85,8 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
                         })
                         .select()
                         .single();
-
-                    if (error) {
-                        console.error('Failed to save user message:', error);
-                    }
-                } catch (error) {
-                    console.error('Error saving user message:', error);
+                } catch {
+                    // Error saving user message
                 }
             }
 
@@ -130,24 +130,22 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
                             .eq('id', convoId);
 
                         responseSaved = true;
-                        console.log(
-                            `Saved partial response for message ${messageId}: ${assistantResponse.length} characters`
-                        );
-                    } catch (error) {
-                        console.error('Failed to save partial response on abort:', error);
+                        // console.log(`Saved partial response for message ${messageId}: ${assistantResponse.length} characters`);
+                    } catch {
+                        // console.error('Failed to save partial response on abort');
                     }
                 }
             };
 
             // Set up abort signal handler
             request.raw.on('close', async () => {
-                console.log(`Client disconnected for message ${messageId}, saving partial response`);
+                // console.log(`Client disconnected for message ${messageId}, saving partial response`);
                 isAborted = true;
                 await savePartialResponse();
             });
 
             request.raw.on('error', async () => {
-                console.log(`Client error for message ${messageId}, saving partial response`);
+                // console.log(`Client error for message ${messageId}, saving partial response`);
                 isAborted = true;
                 await savePartialResponse();
             });
@@ -227,10 +225,12 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
                 reply.raw.write(`data: ${JSON.stringify(finalChunk)}\n\n`);
             } else {
                 // OpenAI 메시지 형식으로 변환
-                const openaiMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = messages.map((msg) => ({
-                    role: msg.role as 'user' | 'assistant' | 'system',
-                    content: msg.content,
-                }));
+                const openaiMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = messages.map(
+                    (msg: any) => ({
+                        role: msg.role as 'user' | 'assistant' | 'system',
+                        content: msg.content,
+                    })
+                );
 
                 // OpenAI 스트리밍 호출
                 const stream = await openaiService.createStreamingChatCompletion(openaiMessages);

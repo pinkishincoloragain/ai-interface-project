@@ -52,6 +52,43 @@ export class OpenAIService {
         }
     }
 
+    async generateTitle(userMessage: string): Promise<string> {
+        this.checkInitialized();
+        try {
+            const completion = await this.client!.chat.completions.create({
+                model: 'gpt-3.5-turbo',
+                messages: [
+                    {
+                        role: 'system',
+                        content:
+                            "Generate a short, descriptive title (max 50 characters) for a chat conversation based on the user's first message. The title should be concise and capture the main topic or intent. Respond with only the title, no quotes or additional text.",
+                    },
+                    {
+                        role: 'user',
+                        content: userMessage,
+                    },
+                ],
+                temperature: 0.7,
+                max_completion_tokens: 50,
+            });
+
+            const title = completion.choices[0]?.message?.content?.trim();
+            if (!title) {
+                return this.fallbackTitle(userMessage);
+            }
+
+            return title.length > 50 ? title.substring(0, 47) + '...' : title;
+        } catch (error) {
+            console.error('OpenAI Title Generation Error:', error);
+            return this.fallbackTitle(userMessage);
+        }
+    }
+
+    private fallbackTitle(userMessage: string): string {
+        const title = userMessage.trim().substring(0, 47);
+        return title.length < userMessage.trim().length ? title + '...' : title;
+    }
+
     // Getter methods for accessing configuration
     getModel(): string {
         return this.model;

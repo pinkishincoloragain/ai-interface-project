@@ -40,7 +40,7 @@ async function startServer() {
         });
 
         // Request logging middleware
-        fastify.addHook('onRequest', async (request) => {
+        fastify.addHook('onRequest', async () => {
             // Request logging handled by Fastify logger
         });
 
