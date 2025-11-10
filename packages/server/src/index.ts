@@ -12,13 +12,18 @@ import cors from '@fastify/cors';
 import fastifySSEPlugin from 'fastify-sse-v2';
 import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
+import postgres from '@fastify/postgres';
+import jwt from '@fastify/jwt';
 
 // 라우트 handlers
 import { registerChatRoutes } from './routes/chat.js';
 import { registerStreamRoutes } from './routes/stream.js';
 import { registerSSERoutes } from './routes/sse.js';
 import { registerTestRoutes } from './routes/test.js';
+import { registerAuthRoutes } from './routes/auth.js';
 import { openaiService } from './services/openai.js';
+import { DatabaseService } from './services/database.js';
+import { AuthService } from './services/auth.js';
 
 async function startServer() {
     try {
@@ -31,6 +36,27 @@ async function startServer() {
         const fastify = Fastify({
             logger: true,
         });
+
+        // JWT 플러그인 등록
+        await fastify.register(jwt, {
+            secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+        });
+
+        // PostgreSQL 플러그인 등록
+        await fastify.register(postgres, {
+            connectionString: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/seamlessai',
+        });
+
+        // Initialize services
+        const dbService = new DatabaseService(fastify);
+        const authService = new AuthService(fastify, dbService);
+
+        // Initialize database schema
+        await dbService.initializeSchema();
+
+        // Make services available to routes
+        fastify.decorate('db', dbService);
+        fastify.decorate('auth', authService);
 
         // CORS 설정
         await fastify.register(cors, {
@@ -100,6 +126,7 @@ async function startServer() {
         await fastify.register(fastifySSEPlugin);
 
         // 라우트 등록
+        registerAuthRoutes(fastify);
         registerChatRoutes(fastify);
         registerStreamRoutes(fastify);
         registerSSERoutes(fastify);

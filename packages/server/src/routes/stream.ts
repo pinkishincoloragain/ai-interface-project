@@ -3,28 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { ChatCompletionRequest, ChatMessage, ChatStreamChunk } from 'shared/types/chat';
 import { fallbackService, openaiService } from '../services/index.js';
 import { threadManager } from '../services/threadManager.js';
-import { createUserSupabaseClient } from '../services/supabase.js';
+import { getUserFromRequest } from '../utils/auth.js';
 import OpenAI from 'openai';
-
-async function getUserFromRequest(request: { headers: { authorization?: string } }) {
-    const authHeader = request.headers.authorization;
-    if (!authHeader) {
-        throw new Error('No authorization header');
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const userClient = createUserSupabaseClient(token);
-
-    const {
-        data: { user },
-        error,
-    } = await userClient.auth.getUser();
-    if (error || !user) {
-        throw new Error('Invalid or expired token');
-    }
-
-    return { user, userClient };
-}
 
 export function registerStreamRoutes(fastify: FastifyInstance) {
     // 스트리밍 응답을 위한 라우트
@@ -37,11 +17,9 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
             } = request.body as ChatCompletionRequest & { conversationId?: string; messageId?: string };
 
             // Get authenticated user
-            let user, userClient;
+            let user;
             try {
-                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
-                user = authUser;
-                userClient = authUserClient;
+                user = await getUserFromRequest(fastify, request);
             } catch {
                 reply.code(401).send({ error: 'Unauthorized' });
                 return;
@@ -55,19 +33,7 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
                 const firstUserMessage = messages.find((m: any) => m.role === 'user');
                 const threadTitle = firstUserMessage?.content?.slice(0, 50) || 'New Chat';
 
-                const { data: newThread, error: threadError } = await userClient
-                    .from('threads')
-                    .insert({
-                        title: threadTitle,
-                        user_id: user.id,
-                    })
-                    .select()
-                    .single();
-
-                if (threadError || !newThread) {
-                    throw new Error('Failed to create thread');
-                }
-
+                const newThread = await fastify.db.createThread(user.id, threadTitle);
                 convoId = newThread.id;
             }
 
@@ -75,16 +41,7 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
             const lastUserMessage = messages[messages.length - 1];
             if (lastUserMessage && lastUserMessage.role === 'user') {
                 try {
-                    await userClient
-                        .from('messages')
-                        .insert({
-                            thread_id: convoId,
-                            user_id: user.id,
-                            role: lastUserMessage.role,
-                            content: lastUserMessage.content,
-                        })
-                        .select()
-                        .single();
+                    await fastify.db.createMessage(convoId, user.id, lastUserMessage.role, lastUserMessage.content);
                 } catch {
                     // Error saving user message
                 }
@@ -115,20 +72,7 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
             const savePartialResponse = async () => {
                 if (assistantResponse.trim() && !responseSaved) {
                     try {
-                        await userClient.from('messages').upsert({
-                            id: messageId,
-                            thread_id: convoId,
-                            user_id: user.id,
-                            role: 'assistant',
-                            content: assistantResponse,
-                        });
-
-                        // Update thread's updated_at timestamp
-                        await userClient
-                            .from('threads')
-                            .update({ updated_at: new Date().toISOString() })
-                            .eq('id', convoId);
-
+                        await fastify.db.upsertMessage(messageId, convoId, user.id, 'assistant', assistantResponse);
                         responseSaved = true;
                         // console.log(`Saved partial response for message ${messageId}: ${assistantResponse.length} characters`);
                     } catch {
@@ -263,9 +207,9 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
                 }
             }
 
-            // Save assistant response to both Supabase and in-memory store
+            // Save assistant response to database
             if (assistantResponse.trim()) {
-                // Save to Supabase (use the same function to avoid duplication)
+                // Save to database
                 await savePartialResponse();
 
                 // Also save to in-memory store for legacy compatibility

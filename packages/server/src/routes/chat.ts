@@ -4,70 +4,27 @@ import { ChatCompletionRequest, ChatCompletionResponse, ChatMessage } from 'shar
 import { openaiService } from '../services/openai.js';
 import { fallbackService } from '../services/fallback.js';
 import { threadManager } from '../services/threadManager.js';
-import { createUserSupabaseClient } from '../services/supabase.js';
+import { getUserFromRequest } from '../utils/auth.js';
 import OpenAI from 'openai';
-
-async function getUserFromRequest(request: { headers: { authorization?: string } }) {
-    const authHeader = request.headers.authorization;
-    if (!authHeader) {
-        throw new Error('No authorization header');
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const userClient = createUserSupabaseClient(token);
-
-    const {
-        data: { user },
-        error,
-    } = await userClient.auth.getUser();
-    if (error || !user) {
-        throw new Error('Invalid or expired token');
-    }
-
-    return { user, userClient };
-}
 
 export function registerChatRoutes(fastify: FastifyInstance) {
     // GET all threads
     fastify.get('/api/threads', async (request, reply) => {
         try {
-            // Get authenticated user
-            let user, userClient;
-            try {
-                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
-                user = authUser;
-                userClient = authUserClient;
-            } catch {
-                return reply.code(401).send({ error: 'Unauthorized' });
-            }
+            const user = await getUserFromRequest(fastify, request);
+            const threads = await fastify.db.getUserThreads(user.id);
 
-            // Get threads with message counts
-            const { data: threads, error: threadsError } = await userClient
-                .from('threads')
-                .select(
-                    `
-                    *,
-                    messages:messages(id, content, role, created_at)
-                `
-                )
-                .eq('user_id', user.id)
-                .order('updated_at', { ascending: false });
-
-            if (threadsError) {
-                console.error('Database error:', threadsError);
-                return reply.code(500).send({ error: 'Failed to fetch threads' });
-            }
-
-            // Format threads with message counts and ensure proper dates
-            const formattedThreads = (threads || []).map((thread) => ({
+            const formattedThreads = threads.map((thread) => ({
                 ...thread,
-                messages: thread.messages || [],
-                createdAt: thread.created_at || new Date().toISOString(),
-                updatedAt: thread.updated_at || thread.created_at || new Date().toISOString(),
+                createdAt: thread.created_at,
+                updatedAt: thread.updated_at,
             }));
 
             return reply.send({ threads: formattedThreads });
         } catch (err) {
+            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+                return reply.code(401).send({ error: 'Unauthorized' });
+            }
             fastify.log.error(err);
             return reply.code(500).send({ error: 'Failed to get threads' });
         }
@@ -77,30 +34,18 @@ export function registerChatRoutes(fastify: FastifyInstance) {
     fastify.get<{ Params: { id: string } }>('/api/threads/:id', async (request, reply) => {
         try {
             const { id } = request.params;
+            const user = await getUserFromRequest(fastify, request);
+            const thread = await fastify.db.getThread(id, user.id);
 
-            // Get authenticated user
-            let user, userClient;
-            try {
-                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
-                user = authUser;
-                userClient = authUserClient;
-            } catch {
-                return reply.code(401).send({ error: 'Unauthorized' });
-            }
-
-            const { data: thread, error: threadError } = await userClient
-                .from('threads')
-                .select('*')
-                .eq('id', id)
-                .eq('user_id', user.id)
-                .single();
-
-            if (threadError || !thread) {
+            if (!thread) {
                 return reply.code(404).send({ error: 'Thread not found' });
             }
 
             return reply.send({ thread });
         } catch (err) {
+            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+                return reply.code(401).send({ error: 'Unauthorized' });
+            }
             fastify.log.error(err);
             return reply.code(500).send({ error: 'Failed to get thread' });
         }
@@ -109,32 +54,14 @@ export function registerChatRoutes(fastify: FastifyInstance) {
     // POST create new thread
     fastify.post('/api/threads', async (request, reply) => {
         try {
-            // Get authenticated user
-            let user, userClient;
-            try {
-                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
-                user = authUser;
-                userClient = authUserClient;
-            } catch {
-                return reply.code(401).send({ error: 'Unauthorized' });
-            }
-
-            const { data: thread, error: createError } = await userClient
-                .from('threads')
-                .insert({
-                    title: 'New Chat',
-                    user_id: user.id,
-                })
-                .select()
-                .single();
-
-            if (createError || !thread) {
-                console.error('Failed to create thread:', createError);
-                return reply.code(500).send({ error: 'Failed to create thread' });
-            }
+            const user = await getUserFromRequest(fastify, request);
+            const thread = await fastify.db.createThread(user.id, 'New Chat');
 
             return reply.send({ thread });
         } catch (err) {
+            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+                return reply.code(401).send({ error: 'Unauthorized' });
+            }
             fastify.log.error(err);
             return reply.code(500).send({ error: 'Failed to create thread' });
         }
@@ -144,31 +71,18 @@ export function registerChatRoutes(fastify: FastifyInstance) {
     fastify.delete<{ Params: { id: string } }>('/api/threads/:id', async (request, reply) => {
         try {
             const { id } = request.params;
+            const user = await getUserFromRequest(fastify, request);
+            const deleted = await fastify.db.deleteThread(id, user.id);
 
-            // Get authenticated user
-            let user, userClient;
-            try {
-                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
-                user = authUser;
-                userClient = authUserClient;
-            } catch {
-                return reply.code(401).send({ error: 'Unauthorized' });
-            }
-
-            // Delete thread and its messages (cascade delete is handled by DB)
-            const { error: deleteError } = await userClient
-                .from('threads')
-                .delete()
-                .eq('id', id)
-                .eq('user_id', user.id);
-
-            if (deleteError) {
-                console.error('Failed to delete thread:', deleteError);
-                return reply.code(500).send({ error: 'Failed to delete thread' });
+            if (!deleted) {
+                return reply.code(404).send({ error: 'Thread not found' });
             }
 
             return reply.send({ success: true });
         } catch (err) {
+            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+                return reply.code(401).send({ error: 'Unauthorized' });
+            }
             fastify.log.error(err);
             return reply.code(500).send({ error: 'Failed to delete thread' });
         }
@@ -178,40 +92,14 @@ export function registerChatRoutes(fastify: FastifyInstance) {
     fastify.get<{ Params: { id: string } }>('/api/threads/:id/messages', async (request, reply) => {
         try {
             const { id } = request.params;
+            const user = await getUserFromRequest(fastify, request);
+            const thread = await fastify.db.getThread(id, user.id);
 
-            // Get authenticated user
-            let user, userClient;
-            try {
-                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
-                user = authUser;
-                userClient = authUserClient;
-            } catch {
-                return reply.code(401).send({ error: 'Unauthorized' });
-            }
-
-            // First verify the thread exists and belongs to the user
-            const { data: thread, error: threadError } = await userClient
-                .from('threads')
-                .select('*')
-                .eq('id', id)
-                .eq('user_id', user.id)
-                .single();
-
-            if (threadError || !thread) {
+            if (!thread) {
                 return reply.code(404).send({ error: 'Thread not found' });
             }
 
-            // Get messages for the thread
-            const { data: messages, error: messagesError } = await userClient
-                .from('messages')
-                .select('*')
-                .eq('thread_id', id)
-                .order('created_at', { ascending: true });
-
-            if (messagesError) {
-                console.error('Database error:', messagesError);
-                return reply.code(500).send({ error: 'Failed to fetch messages' });
-            }
+            const messages = await fastify.db.getThreadMessages(id, user.id);
 
             return reply.send({
                 thread: {
@@ -220,6 +108,9 @@ export function registerChatRoutes(fastify: FastifyInstance) {
                 },
             });
         } catch (err) {
+            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+                return reply.code(401).send({ error: 'Unauthorized' });
+            }
             fastify.log.error(err);
             return reply.code(500).send({ error: 'Failed to get thread messages' });
         }
@@ -230,32 +121,19 @@ export function registerChatRoutes(fastify: FastifyInstance) {
         try {
             const { id } = request.params;
             const { title } = request.body;
+            const user = await getUserFromRequest(fastify, request);
 
-            // Get authenticated user
-            let user, userClient;
-            try {
-                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
-                user = authUser;
-                userClient = authUserClient;
-            } catch {
-                return reply.code(401).send({ error: 'Unauthorized' });
-            }
+            const updatedThread = await fastify.db.updateThread(id, user.id, { title });
 
-            const { data: updatedThread, error } = await userClient
-                .from('threads')
-                .update({ title, updated_at: new Date().toISOString() })
-                .eq('id', id)
-                .eq('user_id', user.id)
-                .select()
-                .single();
-
-            if (error || !updatedThread) {
-                console.error('Failed to update thread:', error);
+            if (!updatedThread) {
                 return reply.code(404).send({ error: 'Thread not found or failed to update' });
             }
 
             return reply.send({ success: true, thread: updatedThread });
         } catch (err) {
+            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+                return reply.code(401).send({ error: 'Unauthorized' });
+            }
             fastify.log.error(err);
             return reply.code(500).send({ error: 'Failed to update thread' });
         }
@@ -265,68 +143,36 @@ export function registerChatRoutes(fastify: FastifyInstance) {
     fastify.post<{ Params: { id: string } }>('/api/threads/:id/generate-title', async (request, reply) => {
         try {
             const { id } = request.params;
+            const user = await getUserFromRequest(fastify, request);
 
-            // Get authenticated user
-            let user, userClient;
-            try {
-                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
-                user = authUser;
-                userClient = authUserClient;
-            } catch {
-                return reply.code(401).send({ error: 'Unauthorized' });
-            }
-
-            // Get thread and first user message
-            const { data: thread, error: threadError } = await userClient
-                .from('threads')
-                .select('*')
-                .eq('id', id)
-                .eq('user_id', user.id)
-                .single();
-
-            if (threadError || !thread) {
+            const thread = await fastify.db.getThread(id, user.id);
+            if (!thread) {
                 return reply.code(404).send({ error: 'Thread not found' });
             }
 
-            // Get first user message
-            const { data: firstMessage, error: messageError } = await userClient
-                .from('messages')
-                .select('content')
-                .eq('thread_id', id)
-                .eq('role', 'user')
-                .order('created_at', { ascending: true })
-                .limit(1)
-                .single();
+            const messages = await fastify.db.getThreadMessages(id, user.id);
+            const firstUserMessage = messages.find((m) => m.role === 'user');
 
-            if (messageError || !firstMessage) {
+            if (!firstUserMessage) {
                 return reply.code(404).send({ error: 'No user message found in thread' });
             }
 
             // Generate title using OpenAI
             let generatedTitle: string;
             try {
-                generatedTitle = await openaiService.generateTitle(firstMessage.content);
+                generatedTitle = await openaiService.generateTitle(firstUserMessage.content);
             } catch {
                 // Fallback to simple title generation
-                const fallbackTitle = firstMessage.content.trim().substring(0, 47);
+                const fallbackTitle = firstUserMessage.content.trim().substring(0, 47);
                 generatedTitle =
-                    fallbackTitle.length < firstMessage.content.trim().length ? fallbackTitle + '...' : fallbackTitle;
+                    fallbackTitle.length < firstUserMessage.content.trim().length
+                        ? fallbackTitle + '...'
+                        : fallbackTitle;
             }
 
-            // Update thread with generated title
-            const { data: updatedThread, error: updateError } = await userClient
-                .from('threads')
-                .update({
-                    title: generatedTitle,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq('id', id)
-                .eq('user_id', user.id)
-                .select()
-                .single();
+            const updatedThread = await fastify.db.updateThread(id, user.id, { title: generatedTitle });
 
-            if (updateError || !updatedThread) {
-                console.error('Failed to update thread with generated title:', updateError);
+            if (!updatedThread) {
                 return reply.code(500).send({ error: 'Failed to update thread title' });
             }
 
@@ -336,6 +182,9 @@ export function registerChatRoutes(fastify: FastifyInstance) {
                 thread: updatedThread,
             });
         } catch (err) {
+            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+                return reply.code(401).send({ error: 'Unauthorized' });
+            }
             fastify.log.error(err);
             return reply.code(500).send({ error: 'Failed to generate thread title' });
         }
@@ -352,52 +201,20 @@ export function registerChatRoutes(fastify: FastifyInstance) {
     }>('/api/messages/save', async (request, reply) => {
         try {
             const { threadId, messageId, content, role } = request.body;
+            const user = await getUserFromRequest(fastify, request);
 
-            // Get authenticated user
-            let user, userClient;
-            try {
-                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
-                user = authUser;
-                userClient = authUserClient;
-            } catch {
-                return reply.code(401).send({ error: 'Unauthorized' });
-            }
-
-            // Verify thread belongs to user
-            const { data: thread, error: threadError } = await userClient
-                .from('threads')
-                .select('id')
-                .eq('id', threadId)
-                .eq('user_id', user.id)
-                .single();
-
-            if (threadError || !thread) {
+            const thread = await fastify.db.getThread(threadId, user.id);
+            if (!thread) {
                 return reply.code(404).send({ error: 'Thread not found' });
             }
 
-            // Save or update message
-            const { data: savedMessage, error } = await userClient
-                .from('messages')
-                .upsert({
-                    id: messageId,
-                    thread_id: threadId,
-                    user_id: user.id,
-                    role,
-                    content,
-                })
-                .select()
-                .single();
-
-            if (error) {
-                console.error('Failed to save message:', error);
-                return reply.code(500).send({ error: 'Failed to save message' });
-            }
-
-            // Update thread's updated_at timestamp
-            await userClient.from('threads').update({ updated_at: new Date().toISOString() }).eq('id', threadId);
+            const savedMessage = await fastify.db.upsertMessage(messageId, threadId, user.id, role, content);
 
             return reply.send({ success: true, message: savedMessage });
         } catch (err) {
+            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+                return reply.code(401).send({ error: 'Unauthorized' });
+            }
             fastify.log.error(err);
             return reply.code(500).send({ error: 'Failed to save message' });
         }
@@ -410,32 +227,11 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             let currentThreadId = threadId;
             let responseContent: string;
 
-            // Get authenticated user
-            let user, userClient;
-            try {
-                const { user: authUser, userClient: authUserClient } = await getUserFromRequest(request);
-                user = authUser;
-                userClient = authUserClient;
-            } catch {
-                return reply.code(401).send({ error: 'Unauthorized' });
-            }
+            const user = await getUserFromRequest(fastify, request);
 
             // Create new thread if none provided
             if (!currentThreadId) {
-                const { data: newThread, error: threadError } = await userClient
-                    .from('threads')
-                    .insert({
-                        title: 'New Chat',
-                        user_id: user.id,
-                    })
-                    .select()
-                    .single();
-
-                if (threadError || !newThread) {
-                    console.error('Failed to create thread:', threadError);
-                    return reply.code(500).send({ error: 'Failed to create thread' });
-                }
-
+                const newThread = await fastify.db.createThread(user.id, 'New Chat');
                 currentThreadId = newThread.id;
             }
 
@@ -443,16 +239,7 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             const userMessage = messages[messages.length - 1];
             if (userMessage) {
                 try {
-                    const { error: userMessageError } = await userClient.from('messages').insert({
-                        thread_id: currentThreadId,
-                        user_id: user.id,
-                        role: userMessage.role,
-                        content: userMessage.content,
-                    });
-
-                    if (userMessageError) {
-                        console.error('Failed to save user message:', userMessageError);
-                    }
+                    await fastify.db.createMessage(currentThreadId, user.id, userMessage.role, userMessage.content);
                 } catch {
                     // Error saving user message
                 }
@@ -498,46 +285,24 @@ export function registerChatRoutes(fastify: FastifyInstance) {
 
             // Save assistant message to database
             try {
-                const { error: assistantMessageError } = await userClient.from('messages').insert({
-                    thread_id: currentThreadId,
-                    user_id: user.id,
-                    role: 'assistant',
-                    content: responseContent,
-                });
+                await fastify.db.createMessage(currentThreadId, user.id, 'assistant', responseContent);
 
-                if (assistantMessageError) {
-                    console.error('Failed to save assistant message:', assistantMessageError);
-                } else {
-                    // Update thread's updated_at timestamp
-                    await userClient
-                        .from('threads')
-                        .update({ updated_at: new Date().toISOString() })
-                        .eq('id', currentThreadId);
+                // Generate title after first exchange if thread title is still "New Chat"
+                const currentThread = await fastify.db.getThread(currentThreadId, user.id);
 
-                    // Generate title after first exchange if thread title is still "New Chat"
-                    const { data: currentThread } = await userClient
-                        .from('threads')
-                        .select('title')
-                        .eq('id', currentThreadId)
-                        .single();
-
-                    if (currentThread?.title === 'New Chat') {
-                        try {
-                            const generatedTitle = await openaiService.generateTitle(userMessage.content);
-                            await userClient
-                                .from('threads')
-                                .update({ title: generatedTitle })
-                                .eq('id', currentThreadId);
-                        } catch (titleError) {
-                            console.error('Failed to generate automatic title:', titleError);
-                            // Fallback to simple title generation
-                            const fallbackTitle = userMessage.content.trim().substring(0, 47);
-                            const finalTitle =
-                                fallbackTitle.length < userMessage.content.trim().length
-                                    ? fallbackTitle + '...'
-                                    : fallbackTitle;
-                            await userClient.from('threads').update({ title: finalTitle }).eq('id', currentThreadId);
-                        }
+                if (currentThread?.title === 'New Chat') {
+                    try {
+                        const generatedTitle = await openaiService.generateTitle(userMessage.content);
+                        await fastify.db.updateThread(currentThreadId, user.id, { title: generatedTitle });
+                    } catch (titleError) {
+                        console.error('Failed to generate automatic title:', titleError);
+                        // Fallback to simple title generation
+                        const fallbackTitle = userMessage.content.trim().substring(0, 47);
+                        const finalTitle =
+                            fallbackTitle.length < userMessage.content.trim().length
+                                ? fallbackTitle + '...'
+                                : fallbackTitle;
+                        await fastify.db.updateThread(currentThreadId, user.id, { title: finalTitle });
                     }
                 }
             } catch {
@@ -565,6 +330,9 @@ export function registerChatRoutes(fastify: FastifyInstance) {
 
             return reply.send(response);
         } catch (err) {
+            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+                return reply.code(401).send({ error: 'Unauthorized' });
+            }
             fastify.log.error(err);
             return reply.code(500).send({ error: 'Failed to process message' });
         }
