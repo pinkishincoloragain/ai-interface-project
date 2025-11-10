@@ -1,6 +1,6 @@
 {
     "version": 2,
-    "buildCommand": "cd ../.. && pnpm build:server",
+    "buildCommand": "pnpm build",
     "builds": [
         {
             "src": "dist/index.js",
