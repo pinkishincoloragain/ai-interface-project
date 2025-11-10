@@ -1,8 +1,8 @@
 import React from 'react';
 
 interface MessageStatusProps {
-    status?: 'sending' | 'error';
-    role?: 'user' | 'assistant';
+    status?: 'sending' | 'success' | 'error';
+    role?: 'user' | 'assistant' | 'system';
     isEmpty?: boolean;
 }
 
