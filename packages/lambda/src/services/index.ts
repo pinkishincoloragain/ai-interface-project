@@ -3,6 +3,7 @@ import { AuthService } from './auth';
 import { OpenAIService } from './openai';
 import { FallbackService } from './fallback';
 import { SecretsService } from './secrets';
+import { logger } from '../utils/logger';
 
 export let db: DatabaseService;
 export let auth: AuthService;
@@ -11,7 +12,7 @@ export let fallback: FallbackService;
 export let secrets: SecretsService;
 
 export async function initializeServices() {
-    console.log('Initializing services...');
+    logger.info('Initializing services...');
 
     // Initialize secrets service first
     secrets = new SecretsService();
@@ -28,5 +29,5 @@ export async function initializeServices() {
     // Initialize fallback service
     fallback = new FallbackService();
 
-    console.log('Services initialized successfully');
+    logger.info('Services initialized successfully');
 }

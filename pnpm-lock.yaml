@@ -193,9 +193,6 @@ importers:
       aws-sdk:
         specifier: ^2.1467.0
         version: 2.1692.0
-      bcrypt:
-        specifier: ^5.1.1
-        version: 5.1.1
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.2
@@ -209,9 +206,6 @@ importers:
       '@types/aws-lambda':
         specifier: ^8.10.119
         version: 8.10.157
-      '@types/bcrypt':
-        specifier: ^5.0.0
-        version: 5.0.2
       '@types/jsonwebtoken':
         specifier: ^9.0.2
         version: 9.0.10

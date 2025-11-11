@@ -1,9 +1,11 @@
 import { auth } from '../services/index';
+import { logger } from '../utils/logger';
+import type { Router, AuthRequest } from '../types';
 
-export function authRoutes(router: any) {
-    router.register('POST', '/api/auth/signup', async (req: any) => {
+export function authRoutes(router: Router) {
+    router.register('POST', '/api/auth/signup', async (req) => {
         try {
-            const { email, password } = req.body;
+            const { email, password } = req.body as AuthRequest['body'];
 
             if (!email || !password) {
                 return {
@@ -26,7 +28,7 @@ export function authRoutes(router: any) {
                 body: result,
             };
         } catch (error) {
-            console.error('Signup error:', error);
+            logger.error('Signup error', error);
             return {
                 statusCode: 500,
                 body: { error: 'Internal server error' },
@@ -34,9 +36,9 @@ export function authRoutes(router: any) {
         }
     });
 
-    router.register('POST', '/api/auth/signin', async (req: any) => {
+    router.register('POST', '/api/auth/signin', async (req) => {
         try {
-            const { email, password } = req.body;
+            const { email, password } = req.body as AuthRequest['body'];
 
             if (!email || !password) {
                 return {
@@ -59,7 +61,7 @@ export function authRoutes(router: any) {
                 body: result,
             };
         } catch (error) {
-            console.error('Signin error:', error);
+            logger.error('Signin error', error);
             return {
                 statusCode: 500,
                 body: { error: 'Internal server error' },
@@ -67,9 +69,9 @@ export function authRoutes(router: any) {
         }
     });
 
-    router.register('POST', '/api/auth/refresh', async (req: any) => {
+    router.register('POST', '/api/auth/refresh', async (req) => {
         try {
-            const { refresh_token } = req.body;
+            const { refresh_token } = req.body as AuthRequest['body'];
 
             if (!refresh_token) {
                 return {
@@ -92,7 +94,7 @@ export function authRoutes(router: any) {
                 body: result,
             };
         } catch (error) {
-            console.error('Token refresh error:', error);
+            logger.error('Token refresh error', error);
             return {
                 statusCode: 500,
                 body: { error: 'Internal server error' },
@@ -100,7 +102,7 @@ export function authRoutes(router: any) {
         }
     });
 
-    router.register('POST', '/api/auth/signout', async (req: any) =>
+    router.register('POST', '/api/auth/signout', async (_req) =>
         // For Cognito, we don't need to do anything server-side for sign out
         // The client just needs to remove the tokens
         ({

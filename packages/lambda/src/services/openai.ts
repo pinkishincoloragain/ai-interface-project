@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { secrets } from './index';
+import { logger } from '../utils/logger';
 
 export class OpenAIService {
     private client: OpenAI | null = null;
@@ -18,10 +19,10 @@ export class OpenAIService {
                     apiKey: apiKeys.OPENAI_API_KEY,
                 });
                 this.initialized = true;
-                console.log('OpenAI service initialized successfully');
+                logger.info('OpenAI service initialized successfully');
             }
-        } catch (error) {
-            console.log('OpenAI API key not available, using fallback service');
+        } catch {
+            logger.info('OpenAI API key not available, using fallback service');
         }
     }
 
@@ -49,7 +50,7 @@ export class OpenAIService {
             const content = completion.choices[0]?.message?.content;
             return content ? { content } : null;
         } catch (error) {
-            console.error('OpenAI API error:', error);
+            logger.error('OpenAI API error', error);
             throw new Error('OpenAI API request failed');
         }
     }
@@ -76,7 +77,7 @@ export class OpenAIService {
                 yield chunk;
             }
         } catch (error) {
-            console.error('OpenAI streaming API error:', error);
+            logger.error('OpenAI streaming API error', error);
             throw new Error('OpenAI streaming API request failed');
         }
     }
@@ -109,7 +110,7 @@ export class OpenAIService {
             const title = completion.choices[0]?.message?.content?.trim();
             return title || 'New Chat';
         } catch (error) {
-            console.error('Title generation error:', error);
+            logger.error('Title generation error', error);
             // Fallback title generation
             const fallbackTitle = firstMessage.trim().substring(0, 47);
             return fallbackTitle.length < firstMessage.trim().length ? fallbackTitle + '...' : fallbackTitle;

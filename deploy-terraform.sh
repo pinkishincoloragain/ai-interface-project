@@ -44,8 +44,8 @@ echo -e "${YELLOW}📦 Deploying to environment: ${ENVIRONMENT}${NC}"
 # Build Lambda function
 echo -e "${YELLOW}🔨 Building Lambda function...${NC}"
 cd packages/lambda
-npm install
-npm run build
+pnpm install
+pnpm run build
 cd ../..
 
 # Create deployment package
@@ -58,8 +58,8 @@ cd ../..
 # Build frontend
 echo -e "${YELLOW}🔨 Building frontend...${NC}"
 cd packages/client
-npm install
-npm run build
+pnpm install
+pnpm run build
 cd ../..
 
 # Deploy infrastructure with Terraform
@@ -104,7 +104,7 @@ VITE_USER_POOL_CLIENT_ID=${USER_POOL_CLIENT_ID}
 EOF
 
 # Rebuild frontend with new config
-npm run build
+pnpm run build
 cd ../..
 
 # Deploy frontend to S3

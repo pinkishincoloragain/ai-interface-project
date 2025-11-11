@@ -1,10 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
 import { db, openai, fallback } from '../services/index';
 import { getUserFromRequest } from '../utils/auth';
+import { logger } from '../utils/logger';
+import type { Router, LambdaRequest, ErrorWithMessage, ChatMessage } from '../types';
 
-export function chatRoutes(router: any) {
+export function chatRoutes(router: Router) {
     // GET all threads
-    router.register('GET', '/api/threads', async (req: any) => {
+    router.register('GET', '/api/threads', async (req: LambdaRequest) => {
         try {
             const user = await getUserFromRequest(req);
             const threads = await db.getUserThreads(user.id);
@@ -19,14 +21,18 @@ export function chatRoutes(router: any) {
                 statusCode: 200,
                 body: { threads: formattedThreads },
             };
-        } catch (err: any) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            const errorWithMessage = err as ErrorWithMessage;
+            if (
+                errorWithMessage.message === 'No authorization header' ||
+                errorWithMessage.message === 'Invalid or expired token'
+            ) {
                 return {
                     statusCode: 401,
                     body: { error: 'Unauthorized' },
                 };
             }
-            console.error('Get threads error:', err);
+            logger.error('Get threads error', err);
             return {
                 statusCode: 500,
                 body: { error: 'Failed to get threads' },
@@ -35,9 +41,9 @@ export function chatRoutes(router: any) {
     });
 
     // GET specific thread
-    router.register('GET', '/api/threads/:id', async (req: any) => {
+    router.register('GET', '/api/threads/:id', async (req: LambdaRequest) => {
         try {
-            const { id } = req.params;
+            const { id } = req.params || {};
             const user = await getUserFromRequest(req);
             const thread = await db.getThread(id, user.id);
 
@@ -52,14 +58,18 @@ export function chatRoutes(router: any) {
                 statusCode: 200,
                 body: { thread },
             };
-        } catch (err: any) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            const errorWithMessage = err as ErrorWithMessage;
+            if (
+                errorWithMessage.message === 'No authorization header' ||
+                errorWithMessage.message === 'Invalid or expired token'
+            ) {
                 return {
                     statusCode: 401,
                     body: { error: 'Unauthorized' },
                 };
             }
-            console.error('Get thread error:', err);
+            logger.error('Get thread error', err);
             return {
                 statusCode: 500,
                 body: { error: 'Failed to get thread' },
@@ -68,7 +78,7 @@ export function chatRoutes(router: any) {
     });
 
     // POST create new thread
-    router.register('POST', '/api/threads', async (req: any) => {
+    router.register('POST', '/api/threads', async (req: LambdaRequest) => {
         try {
             const user = await getUserFromRequest(req);
             const thread = await db.createThread(user.id, 'New Chat');
@@ -77,14 +87,18 @@ export function chatRoutes(router: any) {
                 statusCode: 200,
                 body: { thread },
             };
-        } catch (err: any) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            const errorWithMessage = err as ErrorWithMessage;
+            if (
+                errorWithMessage.message === 'No authorization header' ||
+                errorWithMessage.message === 'Invalid or expired token'
+            ) {
                 return {
                     statusCode: 401,
                     body: { error: 'Unauthorized' },
                 };
             }
-            console.error('Create thread error:', err);
+            logger.error('Create thread error', err);
             return {
                 statusCode: 500,
                 body: { error: 'Failed to create thread' },
@@ -93,9 +107,9 @@ export function chatRoutes(router: any) {
     });
 
     // DELETE thread
-    router.register('DELETE', '/api/threads/:id', async (req: any) => {
+    router.register('DELETE', '/api/threads/:id', async (req: LambdaRequest) => {
         try {
-            const { id } = req.params;
+            const { id } = req.params || {};
             const user = await getUserFromRequest(req);
             const deleted = await db.deleteThread(id, user.id);
 
@@ -110,14 +124,18 @@ export function chatRoutes(router: any) {
                 statusCode: 200,
                 body: { success: true },
             };
-        } catch (err: any) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            const errorWithMessage = err as ErrorWithMessage;
+            if (
+                errorWithMessage.message === 'No authorization header' ||
+                errorWithMessage.message === 'Invalid or expired token'
+            ) {
                 return {
                     statusCode: 401,
                     body: { error: 'Unauthorized' },
                 };
             }
-            console.error('Delete thread error:', err);
+            logger.error('Delete thread error', err);
             return {
                 statusCode: 500,
                 body: { error: 'Failed to delete thread' },
@@ -126,9 +144,9 @@ export function chatRoutes(router: any) {
     });
 
     // GET thread messages
-    router.register('GET', '/api/threads/:id/messages', async (req: any) => {
+    router.register('GET', '/api/threads/:id/messages', async (req: LambdaRequest) => {
         try {
-            const { id } = req.params;
+            const { id } = req.params || {};
             const user = await getUserFromRequest(req);
             const thread = await db.getThread(id, user.id);
 
@@ -150,14 +168,18 @@ export function chatRoutes(router: any) {
                     },
                 },
             };
-        } catch (err: any) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            const errorWithMessage = err as ErrorWithMessage;
+            if (
+                errorWithMessage.message === 'No authorization header' ||
+                errorWithMessage.message === 'Invalid or expired token'
+            ) {
                 return {
                     statusCode: 401,
                     body: { error: 'Unauthorized' },
                 };
             }
-            console.error('Get thread messages error:', err);
+            logger.error('Get thread messages error', err);
             return {
                 statusCode: 500,
                 body: { error: 'Failed to get thread messages' },
@@ -166,10 +188,10 @@ export function chatRoutes(router: any) {
     });
 
     // PUT update thread title
-    router.register('PUT', '/api/threads/:id', async (req: any) => {
+    router.register('PUT', '/api/threads/:id', async (req: LambdaRequest) => {
         try {
-            const { id } = req.params;
-            const { title } = req.body;
+            const { id } = req.params || {};
+            const { title } = req.body as { title: string };
             const user = await getUserFromRequest(req);
 
             const updatedThread = await db.updateThread(id, user.id, { title });
@@ -185,14 +207,18 @@ export function chatRoutes(router: any) {
                 statusCode: 200,
                 body: { success: true, thread: updatedThread },
             };
-        } catch (err: any) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            const errorWithMessage = err as ErrorWithMessage;
+            if (
+                errorWithMessage.message === 'No authorization header' ||
+                errorWithMessage.message === 'Invalid or expired token'
+            ) {
                 return {
                     statusCode: 401,
                     body: { error: 'Unauthorized' },
                 };
             }
-            console.error('Update thread error:', err);
+            logger.error('Update thread error', err);
             return {
                 statusCode: 500,
                 body: { error: 'Failed to update thread' },
@@ -201,9 +227,9 @@ export function chatRoutes(router: any) {
     });
 
     // POST generate thread title from first message
-    router.register('POST', '/api/threads/:id/generate-title', async (req: any) => {
+    router.register('POST', '/api/threads/:id/generate-title', async (req: LambdaRequest) => {
         try {
-            const { id } = req.params;
+            const { id } = req.params || {};
             const user = await getUserFromRequest(req);
 
             const thread = await db.getThread(id, user.id);
@@ -254,14 +280,18 @@ export function chatRoutes(router: any) {
                     thread: updatedThread,
                 },
             };
-        } catch (err: any) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            const errorWithMessage = err as ErrorWithMessage;
+            if (
+                errorWithMessage.message === 'No authorization header' ||
+                errorWithMessage.message === 'Invalid or expired token'
+            ) {
                 return {
                     statusCode: 401,
                     body: { error: 'Unauthorized' },
                 };
             }
-            console.error('Generate title error:', err);
+            logger.error('Generate title error', err);
             return {
                 statusCode: 500,
                 body: { error: 'Failed to generate thread title' },
@@ -270,9 +300,14 @@ export function chatRoutes(router: any) {
     });
 
     // POST save partial message (for aborted/stopped messages)
-    router.register('POST', '/api/messages/save', async (req: any) => {
+    router.register('POST', '/api/messages/save', async (req: LambdaRequest) => {
         try {
-            const { threadId, messageId, content, role } = req.body;
+            const { threadId, messageId, content, role } = req.body as {
+                threadId: string;
+                messageId: string;
+                content: string;
+                role: 'user' | 'assistant';
+            };
             const user = await getUserFromRequest(req);
 
             const thread = await db.getThread(threadId, user.id);
@@ -289,14 +324,18 @@ export function chatRoutes(router: any) {
                 statusCode: 200,
                 body: { success: true, message: savedMessage },
             };
-        } catch (err: any) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            const errorWithMessage = err as ErrorWithMessage;
+            if (
+                errorWithMessage.message === 'No authorization header' ||
+                errorWithMessage.message === 'Invalid or expired token'
+            ) {
                 return {
                     statusCode: 401,
                     body: { error: 'Unauthorized' },
                 };
             }
-            console.error('Save message error:', err);
+            logger.error('Save message error', err);
             return {
                 statusCode: 500,
                 body: { error: 'Failed to save message' },
@@ -305,9 +344,9 @@ export function chatRoutes(router: any) {
     });
 
     // POST send message to thread (non-streaming)
-    router.register('POST', '/api/chat', async (req: any) => {
+    router.register('POST', '/api/chat', async (req: LambdaRequest) => {
         try {
-            const { messages, threadId } = req.body;
+            const { messages, threadId } = req.body as { messages: ChatMessage[]; threadId?: string };
             let currentThreadId = threadId;
             let responseContent: string;
 
@@ -323,7 +362,12 @@ export function chatRoutes(router: any) {
             const userMessage = messages[messages.length - 1];
             if (userMessage) {
                 try {
-                    await db.createMessage(currentThreadId, user.id, userMessage.role, userMessage.content);
+                    await db.createMessage(
+                        currentThreadId,
+                        user.id,
+                        userMessage.role as 'user' | 'assistant',
+                        userMessage.content
+                    );
                 } catch {
                     // Error saving user message
                 }
@@ -332,7 +376,7 @@ export function chatRoutes(router: any) {
             // Generate AI response
             if (!openai.isInitialized()) {
                 // Fallback service
-                const fallbackMessages = messages.map((msg: any) => ({
+                const fallbackMessages = (messages as ChatMessage[]).map((msg) => ({
                     role: msg.role as 'user' | 'assistant' | 'system',
                     content: msg.content,
                 }));
@@ -341,7 +385,7 @@ export function chatRoutes(router: any) {
                 responseContent = `⚠️ OpenAI API가 설정되지 않았습니다.\n\n${fallbackResponse.content}\n\n💡 실제 AI 응답을 받으려면:\n1. .env 파일에 OPENAI_API_KEY를 설정하세요\n2. 서버를 재시작하세요`;
             } else {
                 // OpenAI API call
-                const openaiMessages = messages.map((msg: any) => ({
+                const openaiMessages = (messages as ChatMessage[]).map((msg) => ({
                     role: msg.role as 'user' | 'assistant' | 'system',
                     content: msg.content,
                 }));
@@ -367,7 +411,7 @@ export function chatRoutes(router: any) {
                         const generatedTitle = await openai.generateTitle(userMessage.content);
                         await db.updateThread(currentThreadId, user.id, { title: generatedTitle });
                     } catch (titleError) {
-                        console.error('Failed to generate automatic title:', titleError);
+                        logger.error('Failed to generate automatic title', titleError);
                         // Fallback to simple title generation
                         const fallbackTitle = userMessage.content.trim().substring(0, 47);
                         const finalTitle =
@@ -401,14 +445,18 @@ export function chatRoutes(router: any) {
                 statusCode: 200,
                 body: response,
             };
-        } catch (err: any) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            const errorWithMessage = err as ErrorWithMessage;
+            if (
+                errorWithMessage.message === 'No authorization header' ||
+                errorWithMessage.message === 'Invalid or expired token'
+            ) {
                 return {
                     statusCode: 401,
                     body: { error: 'Unauthorized' },
                 };
             }
-            console.error('Chat error:', err);
+            logger.error('Chat error', err);
             return {
                 statusCode: 500,
                 body: { error: 'Failed to process message' },

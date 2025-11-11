@@ -78,7 +78,7 @@ export class DatabaseService {
                 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
             `);
 
-            console.log('Database schema initialized successfully');
+            // Database schema initialized successfully
         } finally {
             client.release();
         }

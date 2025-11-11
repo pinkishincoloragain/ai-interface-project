@@ -97,7 +97,7 @@ export class AuthService {
             }
 
             return this.toPublicUser(user);
-        } catch (error) {
+        } catch {
             return null;
         }
     }
@@ -119,7 +119,7 @@ export class AuthService {
             const session = await this.generateSession(publicUser);
 
             return { user: publicUser, session };
-        } catch (error) {
+        } catch {
             return { error: 'Invalid refresh token' };
         }
     }

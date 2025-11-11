@@ -7,7 +7,8 @@ import {
 } from '@aws-sdk/client-cognito-identity-provider';
 import { v4 as uuidv4 } from 'uuid';
 import * as jwt from 'jsonwebtoken';
-import { secrets } from './index';
+import { secrets as _secrets } from './index';
+import { logger } from '../utils/logger';
 
 interface User {
     id: string;
@@ -72,10 +73,10 @@ export class AuthService {
 
             // Sign in the user
             return this.signIn(email, password);
-        } catch (error: any) {
-            console.error('Sign up error:', error);
+        } catch (error: unknown) {
+            logger.error('Sign up error', error);
 
-            if (error.name === 'UsernameExistsException') {
+            if (error instanceof Error && error.name === 'UsernameExistsException') {
                 return { error: 'User with this email already exists' };
             }
 
@@ -122,10 +123,10 @@ export class AuthService {
             };
 
             return { user, session };
-        } catch (error: any) {
-            console.error('Sign in error:', error);
+        } catch (error: unknown) {
+            logger.error('Sign in error', error);
 
-            if (error.name === 'NotAuthorizedException') {
+            if (error instanceof Error && error.name === 'NotAuthorizedException') {
                 return { error: 'Invalid email or password' };
             }
 
@@ -136,7 +137,7 @@ export class AuthService {
     async verifyToken(token: string): Promise<User | null> {
         try {
             // For Cognito tokens, we can decode and verify
-            const decoded = jwt.decode(token) as any;
+            const decoded = jwt.decode(token) as { email?: string; sub?: string; [key: string]: unknown } | null;
 
             if (!decoded || !decoded.email) {
                 return null;
@@ -145,7 +146,7 @@ export class AuthService {
             // Get fresh user data from Cognito
             return this.getUserFromToken(token);
         } catch (error) {
-            console.error('Token verification error:', error);
+            logger.error('Token verification error', error);
             return null;
         }
     }
@@ -188,8 +189,8 @@ export class AuthService {
             };
 
             return { user, session };
-        } catch (error: any) {
-            console.error('Token refresh error:', error);
+        } catch (error: unknown) {
+            logger.error('Token refresh error', error);
             return { error: 'Token refresh failed' };
         }
     }
@@ -197,7 +198,12 @@ export class AuthService {
     private async getUserFromToken(accessToken: string): Promise<User | null> {
         try {
             // Decode token to get username
-            const decoded = jwt.decode(accessToken) as any;
+            const decoded = jwt.decode(accessToken) as {
+                username?: string;
+                sub?: string;
+                iat?: number;
+                [key: string]: unknown;
+            } | null;
 
             if (!decoded || !decoded.username) {
                 return null;
@@ -221,13 +227,13 @@ export class AuthService {
             }
 
             return {
-                id: decoded.sub, // Cognito user ID
+                id: decoded.sub!, // Cognito user ID
                 email,
-                created_at: new Date(decoded.iat * 1000).toISOString(),
+                created_at: new Date((decoded.iat || 0) * 1000).toISOString(),
                 updated_at: new Date().toISOString(),
             };
         } catch (error) {
-            console.error('Get user from token error:', error);
+            logger.error('Get user from token error', error);
             return null;
         }
     }

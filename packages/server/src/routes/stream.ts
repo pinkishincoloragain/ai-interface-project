@@ -30,7 +30,7 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
 
             // If no conversation ID, create a new thread
             if (!convoId) {
-                const firstUserMessage = messages.find((m: any) => m.role === 'user');
+                const firstUserMessage = messages.find((m: { role: string; content?: string }) => m.role === 'user');
                 const threadTitle = firstUserMessage?.content?.slice(0, 50) || 'New Chat';
 
                 const newThread = await fastify.db.createThread(user.id, threadTitle);
@@ -170,7 +170,7 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
             } else {
                 // OpenAI 메시지 형식으로 변환
                 const openaiMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = messages.map(
-                    (msg: any) => ({
+                    (msg: { role: string; content: string }) => ({
                         role: msg.role as 'user' | 'assistant' | 'system',
                         content: msg.content,
                     })
