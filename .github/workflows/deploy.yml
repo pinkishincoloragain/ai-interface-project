@@ -68,8 +68,8 @@ jobs:
       - name: Build Lambda function
         run: |
           cd packages/lambda
-          npm ci
-          npm run build
+          pnpm install
+          pnpm run build
           cd ../..
           
       - name: Create Lambda deployment package
@@ -82,8 +82,8 @@ jobs:
       - name: Build frontend
         run: |
           cd packages/client
-          npm ci
-          npm run build
+          pnpm install
+          pnpm run build
           cd ../..
           
       - name: Deploy infrastructure with Terraform
@@ -122,7 +122,7 @@ jobs:
           EOF
           
           # Rebuild with new config
-          npm run build
+          pnpm run build
           cd ../..
           
           # Deploy to S3
