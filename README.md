@@ -63,6 +63,8 @@ A fully serverless AI chat application built with React and deployed on AWS infr
 
 4. **Access your app** at the CloudFront URL provided in the deployment output.
 
+![Deployment Architecture](terraform/deployment.png)
+
 ## 📁 Project Structure
 
 ```

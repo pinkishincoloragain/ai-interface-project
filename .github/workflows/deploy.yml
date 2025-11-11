@@ -31,7 +31,7 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-  deploy-frontend:
+  deploy-aws:
     needs: test
     runs-on: ubuntu-latest
     environment: production
@@ -52,67 +52,102 @@ jobs:
       - name: Install dependencies
         run: pnpm install
         
-      - name: Build client
-        run: pnpm build:client
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
-          working-directory: packages/client
-
-  deploy-backend:
-    needs: test
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+          terraform_version: "~> 1.0"
+          terraform_wrapper: false
           
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          node-version: '18'
-          cache: 'pnpm'
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
           
-      - name: Install dependencies
-        run: pnpm install
-        
-      - name: Build server
-        run: pnpm build:server
-        
-      - name: Deploy server to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_SERVER_PROJECT_ID }}
-          vercel-args: '--prod'
-          working-directory: packages/server
-
-  deploy-supabase-functions:
-    needs: test
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
+      - name: Build Lambda function
+        run: |
+          cd packages/lambda
+          pnpm install
+          pnpm run build
+          cd ../..
           
-      - name: Deploy Supabase Edge Functions
-        run: supabase functions deploy --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      - name: Create Lambda deployment package
+        run: |
+          mkdir -p dist
+          cd packages/lambda
+          zip -r ../../dist/lambda.zip dist/ node_modules/ package.json -x "node_modules/.bin/*" "node_modules/.cache/*"
+          cd ../..
+          
+      - name: Build frontend
+        run: |
+          cd packages/client
+          pnpm install
+          pnpm run build
+          cd ../..
+          
+      - name: Deploy infrastructure with Terraform
+        working-directory: terraform
+        run: |
+          terraform init
+          
+          terraform plan \
+            -var="environment=prod" \
+            -var="lambda_zip_path=../dist/lambda.zip" \
+            -var="frontend_build_path=../packages/client/dist" \
+            -out=tfplan
+          
+          terraform apply -auto-approve tfplan
+          
+      - name: Get Terraform outputs
+        id: terraform-outputs
+        working-directory: terraform
+        run: |
+          echo "api_endpoint=$(terraform output -raw api_gateway_url)" >> $GITHUB_OUTPUT
+          echo "cloudfront_url=$(terraform output -raw cloudfront_url)" >> $GITHUB_OUTPUT
+          echo "user_pool_id=$(terraform output -raw user_pool_id)" >> $GITHUB_OUTPUT
+          echo "user_pool_client_id=$(terraform output -raw user_pool_client_id)" >> $GITHUB_OUTPUT
+          echo "website_bucket=$(terraform output -raw website_bucket_name)" >> $GITHUB_OUTPUT
+          echo "api_keys_secret_arn=$(terraform output -raw api_keys_secret_arn)" >> $GITHUB_OUTPUT
+          
+      - name: Update frontend configuration and redeploy
+        run: |
+          cd packages/client
+          
+          # Create production .env file
+          cat > .env.production << EOF
+          VITE_API_BASE_URL=${{ steps.terraform-outputs.outputs.cloudfront_url }}
+          VITE_USER_POOL_ID=${{ steps.terraform-outputs.outputs.user_pool_id }}
+          VITE_USER_POOL_CLIENT_ID=${{ steps.terraform-outputs.outputs.user_pool_client_id }}
+          EOF
+          
+          # Rebuild with new config
+          pnpm run build
+          cd ../..
+          
+          # Deploy to S3
+          aws s3 sync packages/client/dist/ s3://${{ steps.terraform-outputs.outputs.website_bucket }}/ --delete
+          
+      - name: Invalidate CloudFront cache
+        run: |
+          DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?contains(Comment, 'seamlessai-prod') || contains(Origins.Items[0].DomainName, '${{ steps.terraform-outputs.outputs.website_bucket }}')].Id" \
+            --output text)
+          
+          if [ ! -z "$DISTRIBUTION_ID" ] && [ "$DISTRIBUTION_ID" != "None" ]; then
+            aws cloudfront create-invalidation --distribution-id ${DISTRIBUTION_ID} --paths "/*"
+            echo "Cache invalidation created for distribution: $DISTRIBUTION_ID"
+          else
+            echo "Warning: Could not find CloudFront distribution for cache invalidation"
+          fi
+          
+      - name: Display deployment summary
+        run: |
+          echo "🎉 Deployment completed successfully!"
+          echo ""
+          echo "📋 Deployment Summary:"
+          echo "   🌐 Frontend URL: ${{ steps.terraform-outputs.outputs.cloudfront_url }}"
+          echo "   🔗 API Endpoint: ${{ steps.terraform-outputs.outputs.api_endpoint }}"
+          echo "   🪣 S3 Bucket: ${{ steps.terraform-outputs.outputs.website_bucket }}"
+          echo "   🔐 User Pool ID: ${{ steps.terraform-outputs.outputs.user_pool_id }}"
+          echo "   🗝️  Client ID: ${{ steps.terraform-outputs.outputs.user_pool_client_id }}"

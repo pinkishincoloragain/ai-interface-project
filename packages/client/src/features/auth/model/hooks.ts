@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { User, Session } from '@/shared/types/auth';
+import { useCallback, useEffect, useState } from 'react';
+import { Session, User } from '@/shared/types/auth';
 import { useQueryClient } from '@tanstack/react-query';
 import { authApiClient } from '@/shared/api/authApi';
 import { sessionStorage } from '@/shared/lib/sessionStorage';
@@ -16,7 +16,7 @@ export function useAuth() {
     const { isLoggedIn, hasAttemptedAutoLogin, setLoggedIn, setAttemptedAutoLogin, reset } = useLoginState();
 
     // Clear application state
-    const clearApplicationState = () => {
+    const clearApplicationState = useCallback(() => {
         // Clear chat store
         useChatStore.getState().clearMessages();
         useChatStore.getState().setCurrentThreadId(undefined);
@@ -28,7 +28,7 @@ export function useAuth() {
 
         // Clear React Query cache
         queryClient.clear();
-    };
+    }, [queryClient]);
 
     useEffect(() => {
         // Auto-login check
@@ -77,7 +77,7 @@ export function useAuth() {
             // Already attempted auto-login
             setLoading(false);
         }
-    }, [hasAttemptedAutoLogin, isLoggedIn, setAttemptedAutoLogin, setLoggedIn, queryClient]);
+    }, [hasAttemptedAutoLogin, isLoggedIn, setAttemptedAutoLogin, setLoggedIn, queryClient, clearApplicationState]);
 
     const signIn = async (email: string, password: string) => {
         const { user, session, error } = await authApiClient.login(email, password);

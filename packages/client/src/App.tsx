@@ -2,12 +2,13 @@ import { useState, useCallback } from 'react';
 import { ChatContainer } from '@/features/chat';
 import { ThreadSidebarContainer, useThreadStore } from '@/features/thread';
 import { useAuth, LoginForm } from '@/features/auth';
+import type { Thread } from '@/entities/thread';
 
 function App() {
     const { user, loading, signOut } = useAuth();
     const [activeThreadId, setActiveThreadId] = useState<string | undefined>();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-    const threads = useThreadStore((state: any) => state.threads);
+    const threads = useThreadStore((state: { threads: Thread[] }) => state.threads);
 
     // All hooks must be at the top level
     const handleThreadSelect = useCallback((threadId: string) => {
@@ -56,7 +57,7 @@ function App() {
                 <div className="bg-gray-900 border-b border-gray-700 px-6 py-4 flex-shrink-0 flex justify-between items-center">
                     <h1 className="text-xl font-semibold text-gray-100">
                         {activeThreadId
-                            ? threads.find((t: any) => t.id === activeThreadId)?.title || 'Chat'
+                            ? threads.find((t: Thread) => t.id === activeThreadId)?.title || 'Chat'
                             : 'New Chat'}
                     </h1>
                     <button onClick={handleSignOut} className="text-sm text-gray-400 hover:text-gray-200">

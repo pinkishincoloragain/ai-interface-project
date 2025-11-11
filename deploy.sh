@@ -20,7 +20,7 @@ fi
 # Check if CDK is installed
 if ! command -v cdk &> /dev/null; then
     echo -e "${RED}❌ AWS CDK is not installed. Installing...${NC}"
-    npm install -g aws-cdk
+    pnpm add -g aws-cdk
 fi
 
 # Check if logged in to AWS
@@ -38,8 +38,8 @@ echo -e "${YELLOW}📦 Deploying to environment: ${ENVIRONMENT}${NC}"
 # Build Lambda function
 echo -e "${YELLOW}🔨 Building Lambda function...${NC}"
 cd packages/lambda
-npm install
-npm run build
+pnpm install
+pnpm run build
 cd ../..
 
 # Create deployment package
@@ -51,7 +51,7 @@ cp -r packages/lambda/node_modules dist/lambda/ 2>/dev/null || echo "No node_mod
 # Build and deploy infrastructure
 echo -e "${YELLOW}🏗️ Deploying infrastructure...${NC}"
 cd infrastructure
-npm install
+pnpm install
 
 # Bootstrap CDK (only needed once per account/region)
 echo -e "${YELLOW}🔧 Bootstrapping CDK...${NC}"
@@ -84,8 +84,8 @@ VITE_USER_POOL_ID=${USER_POOL_ID}
 VITE_USER_POOL_CLIENT_ID=${USER_POOL_CLIENT_ID}
 EOF
 
-npm install
-npm run build
+pnpm install
+pnpm run build
 cd ../..
 
 # Deploy frontend to S3

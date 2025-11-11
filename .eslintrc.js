@@ -58,5 +58,12 @@ module.exports = {
                 '@typescript-eslint/no-explicit-any': 'off',
             },
         },
+        // Lambda 함수에 대한 규칙 예외 처리
+        {
+            files: ['packages/lambda/**/*.ts'],
+            rules: {
+                'no-console': 'off', // Lambda 함수에서는 console 사용 허용
+            },
+        },
     ],
 };

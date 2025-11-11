@@ -1,4 +1,5 @@
 import { auth } from '../services/index';
+import type { LambdaRequest } from '../types';
 
 interface User {
     id: string;
@@ -7,7 +8,7 @@ interface User {
     updated_at: string;
 }
 
-export async function getUserFromRequest(req: any): Promise<User> {
+export async function getUserFromRequest(req: LambdaRequest): Promise<User> {
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {

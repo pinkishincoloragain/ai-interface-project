@@ -1,7 +1,4 @@
-'use strict';
-Object.defineProperty(exports, '__esModule', { value: true });
-exports.phrases = void 0;
-exports.phrases = {
+export const phrases = {
     ui: {
         input: {
             placeholder: '메시지를 입력하세요...',
@@ -23,4 +20,3 @@ exports.phrases = {
         renderingLogic: '사용자 메시지는 일반 텍스트로, 어시스턴트 메시지는 마크다운으로 렌더링',
     },
 };
-//# sourceMappingURL=phrases.js.map

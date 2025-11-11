@@ -52,10 +52,10 @@ resource "aws_cognito_user_pool_client" "main" {
 
   # Authentication flows - different ways users can sign in
   explicit_auth_flows = [
-    "ALLOW_USER_SRP_AUTH",       # Secure Remote Password (recommended)
-    "ALLOW_USER_PASSWORD_AUTH",  # Direct username/password (for testing)
+    "ALLOW_USER_SRP_AUTH",            # Secure Remote Password (recommended)
+    "ALLOW_USER_PASSWORD_AUTH",       # Direct username/password (for testing)
     "ALLOW_ADMIN_USER_PASSWORD_AUTH", # Admin API for server-side auth
-    "ALLOW_REFRESH_TOKEN_AUTH"   # Allow refreshing expired tokens
+    "ALLOW_REFRESH_TOKEN_AUTH"        # Allow refreshing expired tokens
   ]
 
   # Only use Cognito for authentication (not external providers like Google/Facebook)
