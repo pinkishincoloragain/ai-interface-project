@@ -2,13 +2,13 @@ import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-sec
 
 export class SecretsService {
     private client: SecretsManagerClient;
-    private cache: Map<string, any> = new Map();
+    private cache: Map<string, unknown> = new Map();
 
     constructor() {
         this.client = new SecretsManagerClient({ region: process.env.AWS_REGION || 'us-east-1' });
     }
 
-    async getSecret(secretArn: string): Promise<any> {
+    async getSecret(secretArn: string): Promise<unknown> {
         if (this.cache.has(secretArn)) {
             return this.cache.get(secretArn);
         }
@@ -45,6 +45,12 @@ export class SecretsService {
             throw new Error('API_KEYS_SECRET_ARN environment variable not set');
         }
 
-        return this.getSecret(secretArn);
+        return this.getSecret(secretArn) as Promise<{
+            OPENAI_API_KEY: string;
+            JWT_SECRET: string;
+            OPENAI_MODEL: string;
+            OPENAI_MAX_TOKENS: string;
+            OPENAI_TEMPERATURE: string;
+        }>;
     }
 }

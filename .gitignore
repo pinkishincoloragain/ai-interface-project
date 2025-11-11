@@ -6,3 +6,10 @@ dist
 *.log
 deploy-functions.sh
 temp-lambda/
+
+# Generated JS files from TypeScript compilation
+**/*.js
+!**/jest.config.js
+!**/vite.config.js
+!**/postcss.config.js
+!**/tailwind.config.js

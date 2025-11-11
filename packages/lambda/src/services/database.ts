@@ -93,8 +93,8 @@ export class DatabaseService {
         try {
             await this.client.send(command);
             return this.toPublicUser(user);
-        } catch (error: any) {
-            if (error.name === 'ConditionalCheckFailedException') {
+        } catch (error: unknown) {
+            if (error instanceof Error && error.name === 'ConditionalCheckFailedException') {
                 throw new Error('User with this email already exists');
             }
             throw error;
@@ -190,7 +190,7 @@ export class DatabaseService {
 
         const updateExpressions: string[] = [];
         const expressionAttributeNames: Record<string, string> = {};
-        const expressionAttributeValues: Record<string, any> = {
+        const expressionAttributeValues: Record<string, unknown> = {
             ':updated_at': now,
         };
 
@@ -219,8 +219,8 @@ export class DatabaseService {
         try {
             const response = await this.client.send(command);
             return response.Attributes as Thread;
-        } catch (error: any) {
-            if (error.name === 'ConditionalCheckFailedException') {
+        } catch (error: unknown) {
+            if (error instanceof Error && error.name === 'ConditionalCheckFailedException') {
                 return null;
             }
             throw error;
@@ -244,8 +244,8 @@ export class DatabaseService {
         try {
             await this.client.send(command);
             return true;
-        } catch (error: any) {
-            if (error.name === 'ConditionalCheckFailedException') {
+        } catch (error: unknown) {
+            if (error instanceof Error && error.name === 'ConditionalCheckFailedException') {
                 return false;
             }
             throw error;

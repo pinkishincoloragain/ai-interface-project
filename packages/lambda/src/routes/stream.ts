@@ -1,14 +1,23 @@
 import { v4 as uuidv4 } from 'uuid';
 import { db, openai, fallback } from '../services/index';
 import { getUserFromRequest } from '../utils/auth';
+import type { Router, LambdaRequest } from '../types';
 
-export function streamRoutes(router: any) {
+export function streamRoutes(router: Router) {
     // Note: Lambda doesn't support true streaming, so this is a simplified version
     // For true streaming, you'd need to use API Gateway WebSocket or implement Server-Sent Events
 
-    router.register('POST', '/api/chat/stream', async (req: any) => {
+    router.register('POST', '/api/chat/stream', async (req: LambdaRequest) => {
         try {
-            const { messages, conversationId, messageId: providedMessageId } = req.body;
+            const {
+                messages,
+                conversationId,
+                messageId: providedMessageId,
+            } = req.body as {
+                messages: { role: string; content: string }[];
+                conversationId?: string;
+                messageId?: string;
+            };
 
             // Get authenticated user
             let user;
@@ -26,7 +35,7 @@ export function streamRoutes(router: any) {
 
             // If no conversation ID, create a new thread
             if (!convoId) {
-                const firstUserMessage = messages.find((m: any) => m.role === 'user');
+                const firstUserMessage = messages.find((m: { role: string; content?: string }) => m.role === 'user');
                 const threadTitle = firstUserMessage?.content?.slice(0, 50) || 'New Chat';
 
                 const newThread = await db.createThread(user.id, threadTitle);
@@ -48,7 +57,7 @@ export function streamRoutes(router: any) {
             // Generate response
             if (!openai.isInitialized()) {
                 // Fallback service
-                const fallbackMessages = messages.map((msg: any) => ({
+                const fallbackMessages = messages.map((msg: { role: string; content: string }) => ({
                     role: msg.role as 'user' | 'assistant' | 'system',
                     content: msg.content,
                 }));
@@ -65,7 +74,7 @@ export function streamRoutes(router: any) {
                 assistantResponse += setupMessage;
             } else {
                 // OpenAI API call (non-streaming for Lambda compatibility)
-                const openaiMessages = messages.map((msg: any) => ({
+                const openaiMessages = messages.map((msg: { role: string; content: string }) => ({
                     role: msg.role as 'user' | 'assistant' | 'system',
                     content: msg.content,
                 }));

@@ -4,7 +4,7 @@
  */
 export function ensureAsciiHeaderValue(value: string): string {
     // Check if value contains only ASCII characters (0x00-0x7F)
-    const isAscii = /^[\x00-\x7F]*$/.test(value);
+    const isAscii = /^[\u0020-\u007F]*$/.test(value);
 
     if (isAscii) {
         return value;

@@ -41,11 +41,7 @@ export class FallbackService {
         const completion = await this.createMockChatCompletion(messages);
         const words = completion.content.split(' ');
 
-        let currentContent = '';
-
         for (let i = 0; i < words.length; i++) {
-            currentContent += (i > 0 ? ' ' : '') + words[i];
-
             yield {
                 content: words[i] + (i < words.length - 1 ? ' ' : ''),
                 isDone: i === words.length - 1,

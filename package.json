@@ -12,7 +12,7 @@
         "dev": "concurrently \"pnpm dev:server\" \"pnpm dev:client\"",
         "build:client": "pnpm --filter client build",
         "build:server": "pnpm --filter server build",
-        "build": "pnpm build:server && pnpm build:client",
+        "build": "pnpm build:client && tsc",
         "deploy": "./deploy-terraform.sh",
         "deploy:cdk": "./deploy.sh",
         "test-openai": "pnpm --filter server test:openai",

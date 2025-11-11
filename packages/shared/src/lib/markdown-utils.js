@@ -1,13 +1,4 @@
-'use strict';
-Object.defineProperty(exports, '__esModule', { value: true });
-exports.getFadeInStyle =
-    exports.getTokenStyle =
-    exports.getInlineCodeStyle =
-    exports.getCodeBlockStyle =
-    exports.getMarkdownContainerStyle =
-    exports.getMarkdownStyles =
-        void 0;
-const getMarkdownStyles = () => {
+export const getMarkdownStyles = () => {
     const fadeInKeyframes = `
     @keyframes fadeIn {
       from { opacity: 0; }
@@ -124,15 +115,12 @@ const getMarkdownStyles = () => {
   `;
     return markdownStyles;
 };
-exports.getMarkdownStyles = getMarkdownStyles;
-const getMarkdownContainerStyle = () => ({
-    fontFamily:
-        '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
+export const getMarkdownContainerStyle = () => ({
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
     lineHeight: 1.6,
     color: '#f9fafb',
 });
-exports.getMarkdownContainerStyle = getMarkdownContainerStyle;
-const getCodeBlockStyle = () => ({
+export const getCodeBlockStyle = () => ({
     borderRadius: '6px',
     fontSize: '0.9em',
     margin: '1em 0',
@@ -142,8 +130,7 @@ const getCodeBlockStyle = () => ({
     border: '1px solid #4b5563',
     color: '#f9fafb',
 });
-exports.getCodeBlockStyle = getCodeBlockStyle;
-const getInlineCodeStyle = () => ({
+export const getInlineCodeStyle = () => ({
     padding: '0.2em 0.4em',
     margin: '0',
     fontSize: '85%',
@@ -152,13 +139,9 @@ const getInlineCodeStyle = () => ({
     fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace',
     color: '#f9fafb',
 });
-exports.getInlineCodeStyle = getInlineCodeStyle;
-const getTokenStyle = () => ({
+export const getTokenStyle = () => ({
     transition: 'opacity 0.5s ease-in-out',
 });
-exports.getTokenStyle = getTokenStyle;
-const getFadeInStyle = () => ({
+export const getFadeInStyle = () => ({
     animation: 'fadeIn 0.5s ease-in-out',
 });
-exports.getFadeInStyle = getFadeInStyle;
-//# sourceMappingURL=markdown-utils.js.map

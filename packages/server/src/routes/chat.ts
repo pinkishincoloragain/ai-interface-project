@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatCompletionRequest, ChatCompletionResponse, ChatMessage } from 'shared/types/chat';
-import { openaiService } from '../services/openai.js';
+import { openaiService } from '@/services';
 import { fallbackService } from '../services/fallback.js';
 import { threadManager } from '../services/threadManager.js';
 import { getUserFromRequest } from '../utils/auth.js';
@@ -21,8 +21,11 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             }));
 
             return reply.send({ threads: formattedThreads });
-        } catch (err) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            if (
+                err instanceof Error &&
+                (err.message === 'No authorization header' || err.message === 'Invalid or expired token')
+            ) {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
             fastify.log.error(err);
@@ -42,8 +45,11 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             }
 
             return reply.send({ thread });
-        } catch (err) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            if (
+                err instanceof Error &&
+                (err.message === 'No authorization header' || err.message === 'Invalid or expired token')
+            ) {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
             fastify.log.error(err);
@@ -58,8 +64,11 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             const thread = await fastify.db.createThread(user.id, 'New Chat');
 
             return reply.send({ thread });
-        } catch (err) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            if (
+                err instanceof Error &&
+                (err.message === 'No authorization header' || err.message === 'Invalid or expired token')
+            ) {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
             fastify.log.error(err);
@@ -79,8 +88,11 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             }
 
             return reply.send({ success: true });
-        } catch (err) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            if (
+                err instanceof Error &&
+                (err.message === 'No authorization header' || err.message === 'Invalid or expired token')
+            ) {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
             fastify.log.error(err);
@@ -107,8 +119,11 @@ export function registerChatRoutes(fastify: FastifyInstance) {
                     messages: messages || [],
                 },
             });
-        } catch (err) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            if (
+                err instanceof Error &&
+                (err.message === 'No authorization header' || err.message === 'Invalid or expired token')
+            ) {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
             fastify.log.error(err);
@@ -130,8 +145,11 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             }
 
             return reply.send({ success: true, thread: updatedThread });
-        } catch (err) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            if (
+                err instanceof Error &&
+                (err.message === 'No authorization header' || err.message === 'Invalid or expired token')
+            ) {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
             fastify.log.error(err);
@@ -181,8 +199,11 @@ export function registerChatRoutes(fastify: FastifyInstance) {
                 title: generatedTitle,
                 thread: updatedThread,
             });
-        } catch (err) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            if (
+                err instanceof Error &&
+                (err.message === 'No authorization header' || err.message === 'Invalid or expired token')
+            ) {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
             fastify.log.error(err);
@@ -211,8 +232,11 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             const savedMessage = await fastify.db.upsertMessage(messageId, threadId, user.id, role, content);
 
             return reply.send({ success: true, message: savedMessage });
-        } catch (err) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            if (
+                err instanceof Error &&
+                (err.message === 'No authorization header' || err.message === 'Invalid or expired token')
+            ) {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
             fastify.log.error(err);
@@ -239,7 +263,12 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             const userMessage = messages[messages.length - 1];
             if (userMessage) {
                 try {
-                    await fastify.db.createMessage(currentThreadId, user.id, userMessage.role, userMessage.content);
+                    await fastify.db.createMessage(
+                        currentThreadId,
+                        user.id,
+                        userMessage.role as 'user' | 'assistant',
+                        userMessage.content
+                    );
                 } catch {
                     // Error saving user message
                 }
@@ -258,7 +287,7 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             // Generate AI response
             if (!openaiService.isInitialized()) {
                 // Fallback service
-                const fallbackMessages = messages.map((msg: any) => ({
+                const fallbackMessages = messages.map((msg: { role: string; content: string }) => ({
                     role: msg.role as 'user' | 'assistant' | 'system',
                     content: msg.content,
                 }));
@@ -268,7 +297,7 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             } else {
                 // OpenAI API call
                 const openaiMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = messages.map(
-                    (msg: any) => ({
+                    (msg: { role: string; content: string }) => ({
                         role: msg.role as 'user' | 'assistant' | 'system',
                         content: msg.content,
                     })
@@ -329,8 +358,11 @@ export function registerChatRoutes(fastify: FastifyInstance) {
             };
 
             return reply.send(response);
-        } catch (err) {
-            if (err.message === 'No authorization header' || err.message === 'Invalid or expired token') {
+        } catch (err: unknown) {
+            if (
+                err instanceof Error &&
+                (err.message === 'No authorization header' || err.message === 'Invalid or expired token')
+            ) {
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
             fastify.log.error(err);

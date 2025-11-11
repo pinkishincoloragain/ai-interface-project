@@ -1,24 +1,7 @@
-import { Context } from 'aws-lambda';
 import { authRoutes } from './routes/auth';
 import { chatRoutes } from './routes/chat';
 import { streamRoutes } from './routes/stream';
-
-interface Request {
-    method: string;
-    path: string;
-    headers: Record<string, string | undefined>;
-    body: any;
-    queryStringParameters: Record<string, string | undefined>;
-    context: Context;
-}
-
-interface Response {
-    statusCode: number;
-    headers?: Record<string, string>;
-    body: any;
-}
-
-type RouteHandler = (req: Request) => Promise<Response>;
+import type { LambdaRequest, LambdaResponse, RouteHandler } from './types';
 
 class Router {
     private routes: Record<string, Record<string, RouteHandler>> = {};
@@ -30,7 +13,7 @@ class Router {
         this.routes[method][path] = handler;
     }
 
-    async handle(req: Request): Promise<Response> {
+    async handle(req: LambdaRequest): Promise<LambdaResponse> {
         // Handle CORS preflight
         if (req.method === 'OPTIONS') {
             return {
@@ -56,7 +39,7 @@ class Router {
                 if (this.matchPattern(pattern, req.path)) {
                     // Add path parameters to request
                     const params = this.extractParams(pattern, req.path);
-                    (req as any).params = params;
+                    req.params = params;
                     return handler(req);
                 }
             }

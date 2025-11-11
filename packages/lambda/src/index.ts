@@ -1,6 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { router } from './router';
 import { initializeServices } from './services';
+import { logger } from './utils/logger';
 
 // Global service initialization
 let servicesInitialized = false;
@@ -20,7 +21,7 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context): Pr
         const body = event.body ? JSON.parse(event.body) : null;
         const queryStringParameters = event.queryStringParameters || {};
 
-        console.log(`${method} ${path}`, { body, queryStringParameters });
+        logger.request(method, path, { body, queryStringParameters });
 
         // Route the request
         const response = await router.handle({
