@@ -22,6 +22,7 @@ export interface ChatCompletionRequest {
     messages: ChatMessage[];
     conversationId?: string;
     messageId?: string;
+    model?: string;
 }
 
 export interface ChatCompletionResponse {
