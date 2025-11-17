@@ -48,12 +48,10 @@ pnpm install
 pnpm run build
 cd ../..
 
-# Create deployment package
-echo -e "${YELLOW}📦 Creating Lambda deployment package...${NC}"
+# Copy deployment package
+echo -e "${YELLOW}📦 Copying Lambda deployment package...${NC}"
 mkdir -p dist
-cd packages/lambda
-zip -r ../../dist/lambda.zip dist/ node_modules/ -x "node_modules/.bin/*" "node_modules/.cache/*"
-cd ../..
+cp packages/lambda/lambda.zip dist/lambda.zip
 
 # Build frontend
 echo -e "${YELLOW}🔨 Building frontend...${NC}"
@@ -118,7 +116,7 @@ DISTRIBUTION_ID=$(aws cloudfront list-distributions \
     --output text)
 
 if [ ! -z "$DISTRIBUTION_ID" ] && [ "$DISTRIBUTION_ID" != "None" ]; then
-    aws cloudfront create-invalidation --distribution-id ${DISTRIBUTION_ID} --paths "/*"
+    aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths "/*"
 else
     echo -e "${YELLOW}⚠️ Could not find CloudFront distribution for cache invalidation${NC}"
 fi

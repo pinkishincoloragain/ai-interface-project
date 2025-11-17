@@ -108,7 +108,7 @@ resource "aws_lambda_function" "api" {
   function_name = "${local.prefix}-api"        # e.g., "seamlessai-dev-api"
   role          = aws_iam_role.lambda_role.arn # IAM role with permissions
   handler       = "index.handler"              # Entry point: index.js, export handler function
-  runtime       = "nodejs18.x"                 # Node.js version
+  runtime       = "nodejs20.x"                 # Node.js version
   timeout       = 30                           # Max execution time (seconds)
   memory_size   = 1024                         # Memory allocation (MB) - affects CPU power
 
