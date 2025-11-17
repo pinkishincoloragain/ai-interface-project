@@ -5,7 +5,7 @@ import {
     AdminSetUserPasswordCommand,
     AdminGetUserCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import { secrets as _secrets } from './index';
 import { logger } from '../utils/logger';
@@ -39,7 +39,7 @@ export class AuthService {
     async signUp(email: string, password: string): Promise<{ user: User; session: Session } | { error: string }> {
         try {
             // Generate a unique username since the pool uses email alias
-            const username = uuidv4();
+            const username = randomUUID();
 
             // Create user in Cognito
             const createUserCommand = new AdminCreateUserCommand({
@@ -139,7 +139,8 @@ export class AuthService {
             // For Cognito tokens, we can decode and verify
             const decoded = jwt.decode(token) as { email?: string; sub?: string; [key: string]: unknown } | null;
 
-            if (!decoded || !decoded.email) {
+            // Check if token has required fields (sub is always present in Cognito tokens)
+            if (!decoded || !decoded.sub) {
                 return null;
             }
 
