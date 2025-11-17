@@ -1,6 +1,29 @@
 import { useState } from 'react';
 import { useAuth } from '../../model/hooks';
 
+// Password validation helper
+const validatePassword = (password: string): { valid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+
+    if (password.length < 8) {
+        errors.push('At least 8 characters');
+    }
+    if (!/[A-Z]/.test(password)) {
+        errors.push('One uppercase letter');
+    }
+    if (!/[a-z]/.test(password)) {
+        errors.push('One lowercase letter');
+    }
+    if (!/[0-9]/.test(password)) {
+        errors.push('One number');
+    }
+
+    return {
+        valid: errors.length === 0,
+        errors,
+    };
+};
+
 export function LoginForm() {
     const { signIn, signUp } = useAuth();
     const [email, setEmail] = useState('');
@@ -13,6 +36,16 @@ export function LoginForm() {
         e.preventDefault();
         setLoading(true);
         setError(null);
+
+        // Validate password for signup
+        if (isSignUp) {
+            const validation = validatePassword(password);
+            if (!validation.valid) {
+                setError(`Password must contain: ${validation.errors.join(', ')}`);
+                setLoading(false);
+                return;
+            }
+        }
 
         try {
             const { error } = isSignUp ? await signUp(email, password) : await signIn(email, password);
@@ -64,6 +97,22 @@ export function LoginForm() {
                             />
                         </div>
                     </div>
+
+                    {isSignUp && (
+                        <div className="text-xs text-gray-600 mt-2">
+                            <p className="font-semibold mb-1">Password must contain:</p>
+                            <ul className="list-disc list-inside space-y-1">
+                                <li className={password.length >= 8 ? 'text-green-600' : ''}>At least 8 characters</li>
+                                <li className={/[A-Z]/.test(password) ? 'text-green-600' : ''}>
+                                    One uppercase letter (A-Z)
+                                </li>
+                                <li className={/[a-z]/.test(password) ? 'text-green-600' : ''}>
+                                    One lowercase letter (a-z)
+                                </li>
+                                <li className={/[0-9]/.test(password) ? 'text-green-600' : ''}>One number (0-9)</li>
+                            </ul>
+                        </div>
+                    )}
 
                     {error && <div className="text-red-600 text-sm text-center">{error}</div>}
 

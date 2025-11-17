@@ -26,7 +26,7 @@ export class AuthApiClient {
 
     async login(email: string, password: string): Promise<AuthResponse> {
         try {
-            const response = await fetch(`${this.apiBase}/api/auth/signin`, {
+            const response = await fetch(`${this.apiBase}/api/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -78,7 +78,7 @@ export class AuthApiClient {
 
     async logout(accessToken: string): Promise<{ error?: string }> {
         try {
-            const response = await fetch(`${this.apiBase}/api/auth/signout`, {
+            const response = await fetch(`${this.apiBase}/api/auth/logout`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

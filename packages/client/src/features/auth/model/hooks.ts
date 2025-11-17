@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Session, User } from '@/shared/types/auth';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { authApiClient } from '@/shared/api/authApi';
 import { sessionStorage } from '@/shared/lib/sessionStorage';
 import { useChatStore } from '@/features/chat/model/store';
@@ -13,6 +14,7 @@ export function useAuth() {
     const [loading, setLoading] = useState(true);
     const [previousUserId, setPreviousUserId] = useState<string | null>(null);
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
     const { isLoggedIn, hasAttemptedAutoLogin, setLoggedIn, setAttemptedAutoLogin, reset } = useLoginState();
 
     // Clear application state
@@ -74,10 +76,54 @@ export function useAuth() {
                 setLoading(false);
             }
         } else {
-            // Already attempted auto-login
-            setLoading(false);
+            // Already attempted auto-login, but check if we need to restore user state
+            if (isLoggedIn && !user) {
+                // User is marked as logged in but no user state - restore from session
+                const storedSession = sessionStorage.getSession();
+
+                if (storedSession && sessionStorage.isSessionValid(storedSession)) {
+                    // Verify session with server
+                    authApiClient
+                        .getUser(storedSession.access_token)
+                        .then(({ user, error }) => {
+                            if (user && !error) {
+                                setUser(user);
+                                setSession(storedSession);
+                                setPreviousUserId(user.id);
+                            } else {
+                                // Invalid session, clear everything
+                                sessionStorage.removeSession();
+                                setLoggedIn(false);
+                                clearApplicationState();
+                            }
+                            setLoading(false);
+                        })
+                        .catch(() => {
+                            // Network error or server error, clear session
+                            sessionStorage.removeSession();
+                            setLoggedIn(false);
+                            clearApplicationState();
+                            setLoading(false);
+                        });
+                } else {
+                    // No valid session, reset login state
+                    setLoggedIn(false);
+                    clearApplicationState();
+                    setLoading(false);
+                }
+            } else {
+                setLoading(false);
+            }
         }
-    }, [hasAttemptedAutoLogin, isLoggedIn, setAttemptedAutoLogin, setLoggedIn, queryClient, clearApplicationState]);
+    }, [
+        hasAttemptedAutoLogin,
+        isLoggedIn,
+        user,
+        setAttemptedAutoLogin,
+        setLoggedIn,
+        queryClient,
+        clearApplicationState,
+    ]);
 
     const signIn = async (email: string, password: string) => {
         const { user, session, error } = await authApiClient.login(email, password);
@@ -94,6 +140,9 @@ export function useAuth() {
                 clearApplicationState();
             }
             setPreviousUserId(currentUserId);
+
+            // Navigate to chat after successful login
+            navigate({ to: '/chat' });
         }
 
         return { data: { user, session }, error: error ? { message: error } : null };
@@ -108,6 +157,9 @@ export function useAuth() {
             sessionStorage.setSession(session);
             setLoggedIn(true);
             setPreviousUserId(user.id);
+
+            // Navigate to chat after successful signup
+            navigate({ to: '/chat' });
         }
 
         return { data: { user, session }, error: error ? { message: error } : null };
@@ -129,6 +181,9 @@ export function useAuth() {
         reset();
         clearApplicationState();
         setPreviousUserId(null);
+
+        // Navigate to landing page after sign out
+        navigate({ to: '/' });
 
         return { error: apiError ? { message: apiError } : null };
     };
