@@ -1,6 +1,7 @@
 import { authRoutes } from './routes/auth';
 import { chatRoutes } from './routes/chat';
 import { streamRoutes } from './routes/stream';
+import { logger } from './utils/logger';
 import type { LambdaRequest, LambdaResponse, RouteHandler } from './types';
 
 class Router {
@@ -11,11 +12,19 @@ class Router {
             this.routes[method] = {};
         }
         this.routes[method][path] = handler;
+        logger.debug('Route registered', { method, path });
     }
 
     async handle(req: LambdaRequest): Promise<LambdaResponse> {
+        logger.debug('Routing request', {
+            method: req.method,
+            path: req.path,
+            availableRoutes: Object.keys(this.routes[req.method] || {}),
+        });
+
         // Handle CORS preflight
         if (req.method === 'OPTIONS') {
+            logger.debug('Handling CORS preflight request');
             return {
                 statusCode: 200,
                 headers: {
@@ -30,6 +39,7 @@ class Router {
         // Try exact path match first
         const methodRoutes = this.routes[req.method];
         if (methodRoutes && methodRoutes[req.path]) {
+            logger.debug('Route matched exactly', { pattern: req.path });
             return methodRoutes[req.path](req);
         }
 
@@ -37,6 +47,7 @@ class Router {
         if (methodRoutes) {
             for (const [pattern, handler] of Object.entries(methodRoutes)) {
                 if (this.matchPattern(pattern, req.path)) {
+                    logger.debug('Route matched by pattern', { pattern, path: req.path });
                     // Add path parameters to request
                     const params = this.extractParams(pattern, req.path);
                     req.params = params;
@@ -46,6 +57,11 @@ class Router {
         }
 
         // 404 Not Found
+        logger.warn('No route found', {
+            method: req.method,
+            path: req.path,
+            availableRoutes: Object.keys(this.routes[req.method] || {}),
+        });
         return {
             statusCode: 404,
             body: { error: 'Not Found' },

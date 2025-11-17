@@ -1,4 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
+import { randomUUID } from 'crypto';
 import { router } from './router';
 import { initializeServices } from './services';
 import { logger } from './utils/logger';
@@ -7,10 +8,23 @@ import { logger } from './utils/logger';
 let servicesInitialized = false;
 
 export const handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
+    const startTime = Date.now();
+
+    // Generate correlation ID for request tracking
+    const correlationId = randomUUID();
+    const requestId = context.awsRequestId;
+
+    // Set up logger context
+    logger.setRequestId(requestId);
+    logger.setCorrelationId(correlationId);
+
     // Initialize services on cold start
     if (!servicesInitialized) {
+        logger.info('Initializing services on cold start');
+        const initStart = Date.now();
         await initializeServices();
         servicesInitialized = true;
+        logger.performance('Service initialization', Date.now() - initStart);
     }
 
     try {
@@ -18,12 +32,65 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context): Pr
         const method = event.httpMethod;
         const { path } = event;
         const headers = event.headers || {};
-        const body = event.body ? JSON.parse(event.body) : null;
+        let body = null;
+        if (event.body) {
+            try {
+                // Handle base64 encoded body
+                const bodyString = event.isBase64Encoded
+                    ? Buffer.from(event.body, 'base64').toString('utf-8')
+                    : event.body;
+
+                body = JSON.parse(bodyString);
+            } catch (parseError) {
+                logger.error(
+                    'JSON parsing error',
+                    {
+                        body: event.body?.substring(0, 100), // Log first 100 chars
+                        isBase64Encoded: event.isBase64Encoded,
+                    },
+                    parseError as Error
+                );
+
+                return {
+                    statusCode: 400,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*',
+                    },
+                    body: JSON.stringify({
+                        error: 'Invalid JSON in request body',
+                        message: 'The request body contains malformed JSON',
+                        correlationId,
+                    }),
+                };
+            }
+        }
         const queryStringParameters = event.queryStringParameters || {};
 
-        logger.request(method, path, { body, queryStringParameters });
+        // Extract user information from auth headers if available
+        const authHeader = headers.authorization || headers.Authorization;
+        if (authHeader) {
+            try {
+                // Basic JWT decode to get user ID (without verification for logging)
+                const token = authHeader.replace('Bearer ', '');
+                const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+                if (payload.sub) {
+                    logger.setUserId(payload.sub);
+                }
+            } catch {
+                // Ignore JWT parsing errors for logging
+            }
+        }
+
+        logger.request(method, path, {
+            body: body ? '[REDACTED]' : null, // Don't log sensitive body content
+            queryStringParameters,
+            userAgent: headers['user-agent'] || headers['User-Agent'],
+            sourceIp: event.requestContext?.identity?.sourceIp,
+        });
 
         // Route the request
+        const routeStart = Date.now();
         const response = await router.handle({
             method,
             path,
@@ -32,6 +99,10 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context): Pr
             queryStringParameters,
             context,
         });
+        const routeDuration = Date.now() - routeStart;
+
+        const totalDuration = Date.now() - startTime;
+        logger.response(response.statusCode, totalDuration, { routeDuration });
 
         return {
             statusCode: response.statusCode,
@@ -40,12 +111,14 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context): Pr
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Headers': 'Content-Type,Authorization',
                 'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+                'X-Correlation-ID': correlationId,
                 ...response.headers,
             },
             body: JSON.stringify(response.body),
         };
     } catch (error) {
-        console.error('Lambda handler error:', error);
+        const totalDuration = Date.now() - startTime;
+        logger.error('Lambda handler error', { duration: totalDuration }, error as Error);
 
         return {
             statusCode: 500,
@@ -54,11 +127,16 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context): Pr
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Headers': 'Content-Type,Authorization',
                 'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+                'X-Correlation-ID': correlationId,
             },
             body: JSON.stringify({
                 error: 'Internal server error',
                 message: error instanceof Error ? error.message : 'Unknown error',
+                correlationId,
             }),
         };
+    } finally {
+        // Clear context for next request (in case of container reuse)
+        logger.clearContext();
     }
 };
