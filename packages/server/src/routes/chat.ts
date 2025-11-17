@@ -1,10 +1,9 @@
 import { FastifyInstance } from 'fastify';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatCompletionRequest, ChatCompletionResponse, ChatMessage } from 'shared/types/chat';
-import { openaiService } from '@/services';
-import { fallbackService } from '../services/fallback.js';
-import { threadManager } from '../services/threadManager.js';
-import { getUserFromRequest } from '../utils/auth.js';
+import { fallbackService, openaiService } from '@/services';
+import { threadManager } from '@/services/threadManager';
+import { getUserFromRequest } from '@utils/auth';
 import OpenAI from 'openai';
 
 export function registerChatRoutes(fastify: FastifyInstance) {

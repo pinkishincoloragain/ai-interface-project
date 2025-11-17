@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { db, openai, fallback } from '../services/index';
 import { getUserFromRequest } from '../utils/auth';
 import { logger } from '../utils/logger';
@@ -427,7 +427,7 @@ export function chatRoutes(router: Router) {
 
             // Create bot response
             const botResponse = {
-                id: uuidv4(),
+                id: randomUUID(),
                 role: 'assistant',
                 content: responseContent,
                 createdAt: new Date().toISOString(),
@@ -436,7 +436,7 @@ export function chatRoutes(router: Router) {
 
             // Prepare response
             const response = {
-                id: uuidv4(),
+                id: randomUUID(),
                 message: botResponse,
                 conversationId: currentThreadId!,
             };
