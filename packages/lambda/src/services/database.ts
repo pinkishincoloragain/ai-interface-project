@@ -7,8 +7,7 @@ import {
     QueryCommand,
     UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { v4 as uuidv4 } from 'uuid';
-import { randomBytes, scrypt } from 'crypto';
+import { randomBytes, randomUUID, scrypt } from 'crypto';
 import { promisify } from 'util';
 
 const scryptAsync = promisify(scrypt);
@@ -77,7 +76,7 @@ export class DatabaseService {
         const now = new Date().toISOString();
 
         const user: User = {
-            id: uuidv4(),
+            id: randomUUID(),
             email,
             password_hash: passwordHash,
             created_at: now,
@@ -137,7 +136,7 @@ export class DatabaseService {
         const now = new Date().toISOString();
 
         const thread: Thread = {
-            id: uuidv4(),
+            id: randomUUID(),
             user_id: userId,
             title,
             created_at: now,
@@ -261,7 +260,7 @@ export class DatabaseService {
         const now = new Date().toISOString();
 
         const message: Message = {
-            id: uuidv4(),
+            id: randomUUID(),
             thread_id: threadId,
             user_id: userId,
             role,

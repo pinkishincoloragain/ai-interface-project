@@ -1,4 +1,5 @@
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+import { logger } from '../utils/logger';
 
 export class SecretsService {
     private client: SecretsManagerClient;
@@ -28,7 +29,7 @@ export class SecretsService {
 
             throw new Error('Secret value is empty');
         } catch (error) {
-            console.error('Failed to get secret:', error);
+            logger.error('Failed to get secret', { secretArn }, error as Error);
             throw error;
         }
     }
