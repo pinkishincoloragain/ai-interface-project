@@ -22,8 +22,8 @@
         "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,md}\" && (cd terraform && terraform fmt -check)",
         "format:terraform": "cd terraform && terraform fmt",
         "clean": "rimraf node_modules **/*/node_modules **/*/dist",
-        "postinstall": "husky install",
-        "prepare": "husky install"
+        "postinstall": "command -v husky >/dev/null 2>&1 && husky install || true",
+        "prepare": "command -v husky >/dev/null 2>&1 && husky install || true"
     },
     "devDependencies": {
         "@testing-library/jest-dom": "^6.6.3",

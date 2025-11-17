@@ -196,12 +196,42 @@ importers:
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.2
+      jws:
+        specifier: ^3.2.2
+        version: 3.2.2
+      lodash.includes:
+        specifier: ^4.3.0
+        version: 4.3.0
+      lodash.isboolean:
+        specifier: ^3.0.3
+        version: 3.0.3
+      lodash.isinteger:
+        specifier: ^4.0.4
+        version: 4.0.4
+      lodash.isnumber:
+        specifier: ^3.0.3
+        version: 3.0.3
+      lodash.isplainobject:
+        specifier: ^4.0.6
+        version: 4.0.6
+      lodash.isstring:
+        specifier: ^4.0.1
+        version: 4.0.1
+      lodash.once:
+        specifier: ^4.0.0
+        version: 4.1.1
+      ms:
+        specifier: ^2.1.1
+        version: 2.1.3
       openai:
         specifier: ^4.0.0
         version: 4.104.0
-      uuid:
-        specifier: ^9.0.0
-        version: 9.0.1
+      safe-buffer:
+        specifier: ^5.2.1
+        version: 5.2.1
+      semver:
+        specifier: ^7.5.4
+        version: 7.7.1
     devDependencies:
       '@types/aws-lambda':
         specifier: ^8.10.119
@@ -212,12 +242,12 @@ importers:
       '@types/node':
         specifier: ^20.0.0
         version: 20.17.32
-      '@types/uuid':
-        specifier: ^9.0.2
-        version: 9.0.8
       typescript:
         specifier: ^5.0.0
         version: 5.8.3
+      vite:
+        specifier: ^4.5.0
+        version: 4.5.14(@types/node@20.17.32)
 
   packages/server:
     dependencies:
