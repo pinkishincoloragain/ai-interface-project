@@ -42,21 +42,46 @@ async function startServer() {
             secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
         });
 
-        // PostgreSQL 플러그인 등록
-        await fastify.register(postgres, {
-            connectionString: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/seamlessai',
-        });
+        // PostgreSQL 플러그인 등록 (optional for streaming-only mode)
+        let dbService: DatabaseService | null = null;
+        let authService: AuthService | null = null;
 
-        // Initialize services
-        const dbService = new DatabaseService(fastify);
-        const authService = new AuthService(fastify, dbService);
+        try {
+            await fastify.register(postgres, {
+                connectionString: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/seamlessai',
+            });
 
-        // Initialize database schema
-        await dbService.initializeSchema();
+            // Initialize services
+            dbService = new DatabaseService(fastify);
+            authService = new AuthService(fastify, dbService);
 
-        // Make services available to routes
-        fastify.decorate('db', dbService);
-        fastify.decorate('auth', authService);
+            // Initialize database schema
+            await dbService.initializeSchema();
+
+            // Make services available to routes
+            fastify.decorate('db', dbService);
+            fastify.decorate('auth', authService);
+
+            console.log('✅ Database connected successfully');
+        } catch (dbError) {
+            console.warn('⚠️  Database connection failed - running in streaming-only mode');
+            console.warn('   Auth endpoints will not be available');
+            console.warn('   Streaming endpoints will work with external auth (e.g., AWS Cognito)');
+
+            // Create mock services for streaming-only mode
+            const mockDbService = {
+                createThread: async () => ({ id: 'mock-thread-id' }),
+                createMessage: async () => {},
+                upsertMessage: async () => {},
+            } as any;
+
+            const mockAuthService = {
+                verifyToken: async () => null,
+            } as any;
+
+            fastify.decorate('db', mockDbService);
+            fastify.decorate('auth', mockAuthService);
+        }
 
         // CORS 설정
         await fastify.register(cors, {
