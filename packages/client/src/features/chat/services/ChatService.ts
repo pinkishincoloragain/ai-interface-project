@@ -35,6 +35,9 @@ export class ChatService {
         this.abortController = new AbortController();
         setLoading(true);
 
+        // Track the final conversation ID
+        let finalConversationId: string | undefined = threadId || currentThreadId;
+
         try {
             // Create and add user message
             const userMessage = this.messageService.createUserMessage(content);
@@ -94,6 +97,7 @@ export class ChatService {
 
                         if (conversationId && !currentThreadId) {
                             setCurrentThreadId(conversationId);
+                            finalConversationId = conversationId;
                         }
                     },
                     onTimeout: () => {
@@ -123,7 +127,7 @@ export class ChatService {
             });
 
             await streamPromise;
-            return effectiveThreadId;
+            return finalConversationId;
         } catch (error) {
             setLoading(false);
             // Clean up abort controller on error

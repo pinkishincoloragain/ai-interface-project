@@ -23,8 +23,8 @@ export const useThreadSync = (threadId?: string) => {
                     store.setCurrentThreadId(threadId);
                 }
             } else {
-                // Clear thread ID only if we have one and no messages to preserve
-                if (store.currentThreadId && store.messages.length === 0) {
+                // Clear thread ID and messages when switching to null conversation
+                if (store.currentThreadId !== undefined) {
                     store.clearMessages();
                     store.setCurrentThreadId(undefined);
                 }

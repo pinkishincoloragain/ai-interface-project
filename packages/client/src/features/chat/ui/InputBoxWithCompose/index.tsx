@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { AutoResizeTextarea, ActionButton } from '@/shared/ui';
+import { ActionButton, AutoResizeTextarea } from '@/shared/ui';
+import { chatPhrases } from '../../lib';
 
 interface InputBoxProps {
     onSendMessage: (message: string) => void;
@@ -28,10 +29,10 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false, on
     };
 
     return (
-        <div className="flex items-end gap-2">
+        <div className="flex items-center gap-2">
             <AutoResizeTextarea
                 className="flex-1 border border-gray-600 bg-gray-700 text-white rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed placeholder-gray-400"
-                placeholder="메시지를 입력하세요..."
+                placeholder={chatPhrases.inputPlaceholder}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -43,11 +44,11 @@ const InputBox: React.FC<InputBoxProps> = ({ onSendMessage, disabled = false, on
             />
             {disabled && onStop ? (
                 <ActionButton variant="danger" onClick={onStop}>
-                    중지
+                    {chatPhrases.stop}
                 </ActionButton>
             ) : (
                 <ActionButton variant="primary" onClick={handleSubmit} disabled={!message.trim() || disabled}>
-                    전송
+                    {chatPhrases.send}
                 </ActionButton>
             )}
         </div>

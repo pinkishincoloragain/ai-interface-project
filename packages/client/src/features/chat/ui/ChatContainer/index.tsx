@@ -32,13 +32,13 @@ const ChatContainer: React.FC<ChatContainerProps> = React.memo(({ threadId, onTh
     );
 
     return (
-        <div className="bg-gray-800 rounded-lg shadow-md h-full flex flex-col border border-gray-700 min-h-0">
+        <div className="rounded-lg shadow-md h-full flex flex-col min-h-0">
             <div className="flex-1 min-h-0 overflow-hidden">
                 <MessageList messages={messages} />
             </div>
-            <div className="border-t border-gray-700 flex-shrink-0">
+            <div className="border-gray-700 flex-shrink-0">
                 <StreamingIndicator isStreaming={loading} className="px-4 pt-2" />
-                <div className="p-4">
+                <div className="p-4 pb-0">
                     <InputBoxWithCompose
                         onSendMessage={onSendMessage}
                         disabled={loading}
