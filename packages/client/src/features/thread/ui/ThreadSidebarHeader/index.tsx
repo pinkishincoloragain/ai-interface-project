@@ -31,7 +31,7 @@ export const ThreadSidebarHeader: React.FC<ThreadSidebarHeaderProps> = ({
                 {/* Search Button */}
                 <button
                     onClick={onOpenSearch}
-                    className="w-full py-2.5 text-gray-200 hover:bg-gray-800 rounded-lg transition-colors flex items-center justify-center"
+                    className="w-full py-3 text-gray-200 hover:bg-gray-800 rounded-lg transition-colors flex items-center justify-center"
                     title={threadPhrases.searchChats}
                 >
                     <Search className="w-4 h-4" />
