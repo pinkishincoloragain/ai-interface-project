@@ -4,7 +4,7 @@ terraform {
   required_providers {
     # AWS provider for creating AWS resources
     aws = {
-      source  = "hashicorp/aws" # Official AWS provider
+      source = "hashicorp/aws" # Official AWS provider
       version = "~> 5.0"        # Use version 5.x (allows minor updates)
     }
     # Archive provider for creating zip files
@@ -27,8 +27,8 @@ locals {
 
   # Common tags to apply to all resources for organization and cost tracking
   common_tags = {
-    Project     = var.project_name # Project name for identification
+    Project = var.project_name # Project name for identification
     Environment = var.environment  # Environment (dev, staging, prod)
-    ManagedBy   = "terraform"      # Indicates these resources are managed by Terraform
+    ManagedBy = "terraform"      # Indicates these resources are managed by Terraform
   }
 }

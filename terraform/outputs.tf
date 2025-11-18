@@ -30,3 +30,8 @@ output "api_keys_secret_arn" {
   description = "Secrets Manager ARN - use this to update API keys (like OpenAI API key)"
   value       = aws_secretsmanager_secret.api_keys.arn
 }
+
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID - needed for cache invalidation"
+  value       = aws_cloudfront_distribution.main.id
+}
