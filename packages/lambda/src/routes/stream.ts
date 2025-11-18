@@ -115,7 +115,7 @@ export function streamRoutes(router: Router) {
                 }
             }
 
-            // Return the complete response (simulating the end of a stream)
+            // Return the complete response in SSE format (simulating the end of a stream)
             const streamChunk = {
                 id: messageId,
                 content: assistantResponse,
@@ -130,12 +130,18 @@ export function streamRoutes(router: Router) {
                 responseLength: assistantResponse.length,
             });
 
+            // Format as Server-Sent Events (SSE)
+            // SSE format: data: <json>\n\n
+            const sseData = `data: ${JSON.stringify(streamChunk)}\n\n`;
+
             return {
                 statusCode: 200,
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                    Connection: 'keep-alive',
                 },
-                body: streamChunk,
+                body: sseData,
             };
         } catch (err) {
             const duration = Date.now() - startTime;

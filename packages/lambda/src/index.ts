@@ -111,6 +111,10 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context): Pr
         const totalDuration = Date.now() - startTime;
         logger.response(response.statusCode, totalDuration, { routeDuration });
 
+        // Determine if response body is already a string (e.g., SSE format)
+        const isSSE = response.headers?.['Content-Type'] === 'text/event-stream';
+        const responseBody = isSSE ? response.body : JSON.stringify(response.body);
+
         return {
             statusCode: response.statusCode,
             headers: {
@@ -121,7 +125,7 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context): Pr
                 'X-Correlation-ID': correlationId,
                 ...response.headers,
             },
-            body: JSON.stringify(response.body),
+            body: responseBody,
         };
     } catch (error) {
         const totalDuration = Date.now() - startTime;
