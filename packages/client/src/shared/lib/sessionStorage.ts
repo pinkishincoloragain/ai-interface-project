@@ -24,7 +24,12 @@ export const sessionStorage = {
 
     setSession(session: Session): void {
         try {
-            localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+            // Calculate expires_at if not present
+            const sessionWithExpiry = {
+                ...session,
+                expires_at: session.expires_at || Math.floor(Date.now() / 1000) + session.expires_in,
+            };
+            localStorage.setItem(SESSION_KEY, JSON.stringify(sessionWithExpiry));
         } catch (error) {
             console.error('Failed to save session:', error);
         }
