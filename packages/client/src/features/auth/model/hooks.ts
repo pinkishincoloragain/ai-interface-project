@@ -1,21 +1,29 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Session, User } from '@/shared/types/auth';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { authApiClient } from '@/shared/api/authApi';
 import { sessionStorage } from '@/shared/lib/sessionStorage';
 import { useChatStore } from '@/features/chat/model/store';
 import { useThreadStore } from '@/features/thread/model/store';
-import { useLoginState } from './store';
+import { useAuthStore } from './store';
 
 export function useAuth() {
-    const [user, setUser] = useState<User | null>(null);
-    const [session, setSession] = useState<Session | null>(null);
-    const [loading, setLoading] = useState(true);
     const [previousUserId, setPreviousUserId] = useState<string | null>(null);
     const queryClient = useQueryClient();
     const navigate = useNavigate();
-    const { isLoggedIn, hasAttemptedAutoLogin, setLoggedIn, setAttemptedAutoLogin, reset } = useLoginState();
+    const {
+        user,
+        session,
+        loading,
+        isLoggedIn,
+        hasAttemptedAutoLogin,
+        setUser,
+        setSession,
+        setLoading,
+        setLoggedIn,
+        setAttemptedAutoLogin,
+        reset,
+    } = useAuthStore();
 
     // Clear application state
     const clearApplicationState = useCallback(() => {
