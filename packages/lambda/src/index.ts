@@ -4,6 +4,9 @@ import { router } from './router';
 import { initializeServices } from './services';
 import { logger } from './utils/logger';
 
+// Export streaming handler for /api/chat/stream endpoint
+export { streamingHandler } from './streaming-handler';
+
 // Global service initialization
 let servicesInitialized = false;
 

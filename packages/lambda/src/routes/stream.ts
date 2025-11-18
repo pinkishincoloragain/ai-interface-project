@@ -37,6 +37,11 @@ export function streamRoutes(router: Router) {
                 logger.security('Unauthorized stream request', { error: authError });
                 return {
                     statusCode: 401,
+                    headers: {
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+                    },
                     body: { error: 'Unauthorized' },
                 };
             }
@@ -66,6 +71,7 @@ export function streamRoutes(router: Router) {
             }
 
             let assistantResponse = '';
+            const sseEvents: string[] = [];
 
             // Generate response
             const aiStart = Date.now();
@@ -80,30 +86,78 @@ export function streamRoutes(router: Router) {
                 const warningMessage = '⚠️ OpenAI API가 설정되지 않았습니다.\n\n';
                 assistantResponse += warningMessage;
 
+                // Send first chunk
+                sseEvents.push(
+                    `data: ${JSON.stringify({
+                        id: messageId,
+                        content: assistantResponse,
+                        role: 'assistant',
+                        conversationId: convoId!,
+                        isDone: false,
+                    })}\n\n`
+                );
+
                 // Simulate streaming with fallback response
                 const fallbackResponse = await fallback.createMockChatCompletion(fallbackMessages);
                 assistantResponse += fallbackResponse.content;
 
+                // Send second chunk
+                sseEvents.push(
+                    `data: ${JSON.stringify({
+                        id: messageId,
+                        content: assistantResponse,
+                        role: 'assistant',
+                        conversationId: convoId!,
+                        isDone: false,
+                    })}\n\n`
+                );
+
                 const setupMessage =
                     '\n\n💡 실제 AI 응답을 받으려면:\n1. Secrets Manager에서 API 키를 설정하세요\n2. Lambda를 재배포하세요';
                 assistantResponse += setupMessage;
+
+                // Send final chunk
+                sseEvents.push(
+                    `data: ${JSON.stringify({
+                        id: messageId,
+                        content: assistantResponse,
+                        role: 'assistant',
+                        conversationId: convoId!,
+                        isDone: false,
+                    })}\n\n`
+                );
             } else {
                 logger.info('Generating AI response', { conversationId: convoId, messageCount: messages.length });
-                // OpenAI API call (non-streaming for Lambda compatibility)
+                // OpenAI API call with streaming
                 const openaiMessages = messages.map((msg: { role: string; content: string }) => ({
                     role: msg.role as 'user' | 'assistant' | 'system',
                     content: msg.content,
                 }));
 
-                const response = await openai.createChatCompletion(openaiMessages);
-                if (response?.content) {
-                    assistantResponse = response.content;
-                    logger.business('AI response generated', {
-                        conversationId: convoId,
-                        responseLength: assistantResponse.length,
-                        aiDuration: Date.now() - aiStart,
-                    });
+                // Stream chunks as they arrive
+                for await (const chunk of openai.createStreamingChatCompletion(openaiMessages)) {
+                    const delta = chunk.choices[0]?.delta?.content;
+                    if (delta) {
+                        assistantResponse += delta;
+
+                        // Send each chunk as SSE event
+                        sseEvents.push(
+                            `data: ${JSON.stringify({
+                                id: messageId,
+                                content: assistantResponse,
+                                role: 'assistant',
+                                conversationId: convoId!,
+                                isDone: false,
+                            })}\n\n`
+                        );
+                    }
                 }
+
+                logger.business('AI response generated', {
+                    conversationId: convoId,
+                    responseLength: assistantResponse.length,
+                    aiDuration: Date.now() - aiStart,
+                });
             }
 
             // Save assistant response
@@ -115,14 +169,16 @@ export function streamRoutes(router: Router) {
                 }
             }
 
-            // Return the complete response in SSE format (simulating the end of a stream)
-            const streamChunk = {
-                id: messageId,
-                content: assistantResponse,
-                role: 'assistant',
-                conversationId: convoId!,
-                isDone: true,
-            };
+            // Send final done event
+            sseEvents.push(
+                `data: ${JSON.stringify({
+                    id: messageId,
+                    content: assistantResponse,
+                    role: 'assistant',
+                    conversationId: convoId!,
+                    isDone: true,
+                })}\n\n`
+            );
 
             logger.performance('Stream request completed', Date.now() - startTime, {
                 conversationId: convoId,
@@ -130,9 +186,8 @@ export function streamRoutes(router: Router) {
                 responseLength: assistantResponse.length,
             });
 
-            // Format as Server-Sent Events (SSE)
-            // SSE format: data: <json>\n\n
-            const sseData = `data: ${JSON.stringify(streamChunk)}\n\n`;
+            // Return all SSE events
+            const sseData = sseEvents.join('');
 
             return {
                 statusCode: 200,
@@ -140,6 +195,9 @@ export function streamRoutes(router: Router) {
                     'Content-Type': 'text/event-stream',
                     'Cache-Control': 'no-cache',
                     Connection: 'keep-alive',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
                 },
                 body: sseData,
             };
@@ -148,6 +206,11 @@ export function streamRoutes(router: Router) {
             logger.error('Stream processing error', { conversationId: convoId, duration }, err as Error);
             return {
                 statusCode: 500,
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+                },
                 body: { error: '스트리밍 처리 중 오류가 발생했습니다.' },
             };
         }
