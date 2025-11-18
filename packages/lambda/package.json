@@ -3,10 +3,14 @@
     "version": "1.0.0",
     "description": "AWS Lambda handler for SeamlessAI API",
     "main": "dist/index.js",
+    "sideEffects": [
+        "src/router.ts",
+        "src/routes/*.ts"
+    ],
     "scripts": {
-        "build": "pnpm install && pnpm run clean && pnpm run bundle && pnpm run package",
-        "bundle": "tsc",
-        "package": "rm -rf node_modules package-lock.json && pnpm install && pnpm prune --production && rm -f lambda.zip && cp -r node_modules dist/ && cd dist && zip -r ../lambda.zip . && cd ..",
+        "build": "pnpm run clean && pnpm run bundle && pnpm run package",
+        "bundle": "node esbuild.config.js",
+        "package": "cd dist && zip -r ../lambda.zip . && cd ..",
         "dev": "tsc -w",
         "clean": "rm -rf dist lambda.zip"
     },
@@ -36,6 +40,7 @@
         "@types/aws-lambda": "^8.10.119",
         "@types/jsonwebtoken": "^9.0.2",
         "@types/node": "^20.0.0",
+        "esbuild": "^0.27.0",
         "typescript": "^5.0.0",
         "vite": "^4.5.0"
     }
