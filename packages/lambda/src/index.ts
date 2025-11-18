@@ -31,7 +31,14 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context): Pr
         // Parse the request
         const method = event.httpMethod;
         const { path } = event;
-        const headers = event.headers || {};
+        // Normalize headers to lowercase for consistent access
+        const headers = Object.keys(event.headers || {}).reduce(
+            (acc, key) => {
+                acc[key.toLowerCase()] = event.headers[key];
+                return acc;
+            },
+            {} as Record<string, string | undefined>
+        );
         let body = null;
         if (event.body) {
             try {
@@ -68,7 +75,7 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context): Pr
         const queryStringParameters = event.queryStringParameters || {};
 
         // Extract user information from auth headers if available
-        const authHeader = headers.authorization || headers.Authorization;
+        const authHeader = headers.authorization;
         if (authHeader) {
             try {
                 // Basic JWT decode to get user ID (without verification for logging)

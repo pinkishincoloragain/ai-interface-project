@@ -1,13 +1,12 @@
 import {
-    CognitoIdentityProviderClient,
-    AdminInitiateAuthCommand,
     AdminCreateUserCommand,
-    AdminSetUserPasswordCommand,
     AdminGetUserCommand,
+    AdminInitiateAuthCommand,
+    AdminSetUserPasswordCommand,
+    CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider';
 import { randomUUID } from 'crypto';
 import * as jwt from 'jsonwebtoken';
-import { secrets as _secrets } from './index';
 import { logger } from '../utils/logger';
 
 interface User {
@@ -137,10 +136,22 @@ export class AuthService {
     async verifyToken(token: string): Promise<User | null> {
         try {
             // For Cognito tokens, we can decode and verify
-            const decoded = jwt.decode(token) as { email?: string; sub?: string; [key: string]: unknown } | null;
+            const decoded = jwt.decode(token) as {
+                email?: string;
+                sub?: string;
+                'cognito:username'?: string;
+                username?: string;
+                [key: string]: unknown;
+            } | null;
 
             // Check if token has required fields (sub is always present in Cognito tokens)
             if (!decoded || !decoded.sub) {
+                return null;
+            }
+
+            // Verify username field exists (Cognito uses 'cognito:username')
+            if (!decoded['cognito:username'] && !decoded.username) {
+                logger.error('Token missing username field');
                 return null;
             }
 
@@ -201,18 +212,37 @@ export class AuthService {
             // Decode token to get username
             const decoded = jwt.decode(accessToken) as {
                 username?: string;
+                'cognito:username'?: string;
                 sub?: string;
                 iat?: number;
                 [key: string]: unknown;
             } | null;
 
-            if (!decoded || !decoded.username) {
+            logger.info('Decoded token', {
+                keys: decoded ? Object.keys(decoded) : [],
+                username: decoded?.username,
+                'cognito:username': decoded?.['cognito:username'],
+                sub: decoded?.sub,
+            });
+
+            if (!decoded || !decoded.sub) {
+                logger.error('Token missing required fields');
                 return null;
             }
 
+            // Cognito tokens use 'cognito:username' or we can look up by sub
+            const username = decoded['cognito:username'] || decoded.username;
+
+            if (!username) {
+                logger.error('Username not found in token', { decodedKeys: Object.keys(decoded) });
+                return null;
+            }
+
+            logger.info('Looking up user with username:', username);
+
             const command = new AdminGetUserCommand({
                 UserPoolId: this.userPoolId,
-                Username: decoded.username,
+                Username: username,
             });
 
             const response = await this.client.send(command);
