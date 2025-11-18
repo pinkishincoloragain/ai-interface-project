@@ -31,6 +31,7 @@ export const useThreadQuery = (threadId: string) =>
 
 export const useThreadMessagesQuery = (threadId?: string) => {
     const setMessages = useChatStore((state) => state.setMessages);
+    const clearMessages = useChatStore((state) => state.clearMessages);
     const loading = useChatStore((state) => state.loading);
     const messagesInitialized = useChatStore((state) => state.messagesInitialized);
     const currentThreadId = useChatStore((state) => state.currentThreadId);
@@ -44,16 +45,30 @@ export const useThreadMessagesQuery = (threadId?: string) => {
         enabled: !!effectiveThreadId && !loading, // Don't fetch during active streaming
     });
 
+    // Clear messages when switching to null conversation
+    React.useEffect(() => {
+        if (!effectiveThreadId && !loading) {
+            clearMessages();
+        }
+    }, [effectiveThreadId, clearMessages, loading]);
+
     // Update store when data changes, but preserve local messages during active sessions
     React.useEffect(() => {
         if (query.data && effectiveThreadId && !loading) {
             const serverMessages = query.data.thread.messages || [];
             const currentMessages = useChatStore.getState().messages;
+            const currentStoreThreadId = useChatStore.getState().currentThreadId;
 
             // Only update from server if:
             // 1. Messages haven't been initialized for this thread, OR
-            // 2. We have no local messages but server has messages (thread switch case)
-            if (!messagesInitialized || (currentMessages.length === 0 && serverMessages.length > 0)) {
+            // 2. We have no local messages but server has messages (thread switch case), OR
+            // 3. We're switching to a different thread than what's in the store
+            const shouldUpdateFromServer =
+                !messagesInitialized ||
+                (currentMessages.length === 0 && serverMessages.length > 0) ||
+                (currentStoreThreadId !== effectiveThreadId && serverMessages.length > 0);
+
+            if (shouldUpdateFromServer) {
                 setMessages(serverMessages);
             }
         }
