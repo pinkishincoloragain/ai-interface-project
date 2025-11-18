@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollArea } from '@radix-ui/react-scroll-area';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { PanelLeft, PanelRight } from 'lucide-react';
+import { sharedPhrases } from '@/shared/lib';
 
 interface SidebarProps {
     children: React.ReactNode;
@@ -20,20 +21,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
     className = '',
 }) => (
     <div className={`flex flex-col h-full bg-gray-900 border-r border-gray-700 ${className}`}>
+        {/* Collapse button at the top */}
+        {onToggleCollapse && (
+            <div
+                className={`px-2 py-3 flex ${isCollapsed ? 'justify-center' : 'justify-end'} border-b border-gray-700 flex-shrink-0`}
+            >
+                <button
+                    onClick={onToggleCollapse}
+                    className="p-1.5 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded transition-colors"
+                    title={isCollapsed ? sharedPhrases.expandSidebar : sharedPhrases.collapseSidebar}
+                >
+                    {isCollapsed ? <PanelRight className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
+                </button>
+            </div>
+        )}
+
+        {/* Header section without collapse button */}
         {header && (
             <div className="border-b border-gray-700 flex-shrink-0">
-                <div className="flex items-center justify-between p-4">
-                    {header}
-                    {onToggleCollapse && (
-                        <button
-                            onClick={onToggleCollapse}
-                            className="p-1 text-gray-400 hover:text-gray-200 rounded"
-                            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                        >
-                            {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-                        </button>
-                    )}
-                </div>
+                <div className="px-2 py-4">{header}</div>
             </div>
         )}
 

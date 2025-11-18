@@ -2,6 +2,7 @@ export * from './Button';
 export * from './Input';
 export * from './SidebarHeader';
 export * from './Sidebar';
+export * from './SidebarButton';
 export * from './SearchInput';
 export * from './EmptyState';
 export * from './MarkdownRenderer';
