@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ThreadWithMessages, ThreadSidebar, useThreadViewModel } from '@/features/thread';
+import { ThreadWithMessages, ThreadSidebar, useThreadViewModel, SearchModal } from '@/features/thread';
 
 interface ThreadSidebarContainerProps {
     onThreadSelect?: (threadId: string) => void;
@@ -17,19 +17,25 @@ export const ThreadSidebarContainer: React.FC<ThreadSidebarContainerProps> = ({
     className = '',
 }) => {
     const [searchQuery, setSearchQuery] = useState('');
+    const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
-    const { threads, error, createThread, updateThread, deleteThread, selectThread } = useThreadViewModel();
+    const { threads, error, updateThread, deleteThread, selectThread } = useThreadViewModel();
 
     const handleThreadSelect = (threadId: string) => {
         selectThread(threadId);
         onThreadSelect?.(threadId);
     };
 
-    const handleNewThread = async () => {
-        const newThread = await createThread();
-        if (newThread) {
-            handleThreadSelect(newThread.id);
+    const handleNewThread = () => {
+        // If already showing null conversation, do nothing
+        if (!activeThreadId) {
+            return;
         }
+
+        // Clear active thread selection to show empty chat
+        // New thread will be created when user sends first message
+        selectThread(undefined);
+        onThreadSelect?.(undefined as any);
     };
 
     const handleDeleteThread = async (threadId: string) => {
@@ -51,18 +57,27 @@ export const ThreadSidebarContainer: React.FC<ThreadSidebarContainerProps> = ({
     }
 
     return (
-        <ThreadSidebar
-            threads={transformedThreads}
-            activeThreadId={activeThreadId}
-            onThreadSelect={(thread) => handleThreadSelect(thread.id)}
-            onNewThread={handleNewThread}
-            onDeleteThread={handleDeleteThread}
-            onEditThread={handleEditThread}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            isCollapsed={isCollapsed}
-            onToggleCollapse={onToggleCollapse}
-            className={className}
-        />
+        <>
+            <ThreadSidebar
+                threads={transformedThreads}
+                activeThreadId={activeThreadId}
+                onThreadSelect={(thread) => handleThreadSelect(thread.id)}
+                onNewThread={handleNewThread}
+                onDeleteThread={handleDeleteThread}
+                onEditThread={handleEditThread}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                onOpenSearch={() => setIsSearchModalOpen(true)}
+                isCollapsed={isCollapsed}
+                onToggleCollapse={onToggleCollapse}
+                className={className}
+            />
+            <SearchModal
+                isOpen={isSearchModalOpen}
+                onClose={() => setIsSearchModalOpen(false)}
+                threads={transformedThreads}
+                onThreadSelect={(thread) => handleThreadSelect(thread.id)}
+            />
+        </>
     );
 };

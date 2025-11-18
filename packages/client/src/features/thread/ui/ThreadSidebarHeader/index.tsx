@@ -1,50 +1,52 @@
 import React from 'react';
-import { MessageSquare } from 'lucide-react';
-import { SearchInput } from '@/shared/ui';
+import { Edit, Search } from 'lucide-react';
+import { SidebarButton } from '@/shared/ui';
+import { threadPhrases } from '../../lib';
 
 interface ThreadSidebarHeaderProps {
     isCollapsed?: boolean;
     onNewThread?: () => void;
-    searchQuery?: string;
-    onSearchChange?: (query: string) => void;
+    onOpenSearch?: () => void;
 }
 
 export const ThreadSidebarHeader: React.FC<ThreadSidebarHeaderProps> = ({
     isCollapsed = false,
     onNewThread,
-    searchQuery = '',
-    onSearchChange,
+    onOpenSearch,
 }) => {
     if (isCollapsed) {
         return (
-            <div className="flex items-center justify-between">
-                <MessageSquare className="w-6 h-6 text-gray-300" />
+            <div className="flex flex-col space-y-1">
+                {/* New Chat Button */}
+                {onNewThread && (
+                    <button
+                        onClick={onNewThread}
+                        className="w-full py-3 text-gray-200 hover:bg-gray-800 rounded-lg transition-colors flex items-center justify-center"
+                        title={threadPhrases.newChat}
+                    >
+                        <Edit className="w-4 h-4" />
+                    </button>
+                )}
+
+                {/* Search Button */}
+                <button
+                    onClick={onOpenSearch}
+                    className="w-full py-2.5 text-gray-200 hover:bg-gray-800 rounded-lg transition-colors flex items-center justify-center"
+                    title={threadPhrases.searchChats}
+                >
+                    <Search className="w-4 h-4" />
+                </button>
             </div>
         );
     }
 
     return (
-        <div>
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-gray-300" />
-                    <h2 className="text-lg font-semibold text-gray-100">Chat History</h2>
-                </div>
-                {onNewThread && (
-                    <button
-                        onClick={onNewThread}
-                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
-                        title="New Chat"
-                    >
-                        New Chat
-                    </button>
-                )}
-            </div>
-            <SearchInput
-                value={searchQuery}
-                onChange={onSearchChange || (() => {})}
-                placeholder="Search conversations..."
-            />
+        <div className="space-y-1">
+            {/* New Chat Button - Full width at top */}
+            {onNewThread && <SidebarButton icon={Edit} title={threadPhrases.newChat} onClick={onNewThread} />}
+
+            {/* Search Button */}
+            <SidebarButton icon={Search} title={threadPhrases.searchChats} onClick={onOpenSearch} />
         </div>
     );
 };

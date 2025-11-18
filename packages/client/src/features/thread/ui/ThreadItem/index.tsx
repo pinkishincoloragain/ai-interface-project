@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { Edit2, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { SidebarButton } from '@/shared/ui';
+import { threadPhrases } from '../../lib';
 
 export interface ThreadItemData {
     id: string;
@@ -21,24 +24,7 @@ export const ThreadItem: React.FC<ThreadItemProps> = ({ thread, isActive = false
     const [isEditing, setIsEditing] = useState(false);
     const [editTitle, setEditTitle] = useState(thread.title);
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        const now = new Date();
-        const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (diffInDays === 0) {
-            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } else if (diffInDays === 1) {
-            return 'Yesterday';
-        } else if (diffInDays < 7) {
-            return `${diffInDays} days ago`;
-        } else {
-            return date.toLocaleDateString();
-        }
-    };
-
-    const handleEditStart = (e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handleEditStart = () => {
         setIsEditing(true);
         setEditTitle(thread.title);
     };
@@ -63,70 +49,76 @@ export const ThreadItem: React.FC<ThreadItemProps> = ({ thread, isActive = false
         }
     };
 
-    const handleDelete = (e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handleDelete = () => {
         onDelete?.(thread.id);
     };
 
-    return (
-        <div
-            className={`group relative p-3 rounded-lg cursor-pointer transition-colors ${
-                isActive ? 'bg-blue-600 border border-blue-500' : 'hover:bg-gray-800 border border-transparent'
-            }`}
-            onClick={() => onSelect?.(thread)}
-        >
-            <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                    {isEditing ? (
-                        <input
-                            type="text"
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
-                            onBlur={handleEditSave}
-                            onKeyDown={handleKeyPress}
-                            className="w-full px-2 py-1 text-sm font-medium bg-gray-800 border border-gray-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            autoFocus
-                            onClick={(e) => e.stopPropagation()}
-                        />
-                    ) : (
-                        <h3 className={`text-sm font-medium truncate ${isActive ? 'text-white' : 'text-gray-200'}`}>
-                            {thread.title}
-                        </h3>
-                    )}
-                    <p className={`text-xs mt-1 ${isActive ? 'text-blue-200' : 'text-gray-400'}`}>
-                        {formatDate(thread.updatedAt)}
-                    </p>
-                    <p className={`text-xs mt-0.5 ${isActive ? 'text-blue-300' : 'text-gray-500'}`}>
-                        {thread.messages.length} messages
-                    </p>
-                </div>
-                {(onEdit || onDelete) && (
-                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {onEdit && (
-                            <button
-                                onClick={handleEditStart}
-                                className={`p-1 rounded transition-colors ${
-                                    isActive ? 'text-blue-200 hover:text-white' : 'text-gray-400 hover:text-gray-200'
-                                }`}
-                                title="Edit title"
-                            >
-                                <Edit2 className="w-3 h-3" />
-                            </button>
-                        )}
-                        {onDelete && (
-                            <button
-                                onClick={handleDelete}
-                                className={`p-1 rounded transition-colors ${
-                                    isActive ? 'text-blue-200 hover:text-red-300' : 'text-gray-400 hover:text-red-400'
-                                }`}
-                                title="Delete thread"
-                            >
-                                <Trash2 className="w-3 h-3" />
-                            </button>
-                        )}
-                    </div>
-                )}
+    if (isEditing) {
+        return (
+            <div className="px-2">
+                <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onBlur={handleEditSave}
+                    onKeyDown={handleKeyPress}
+                    className="w-full px-3 py-2 text-sm font-medium bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                />
             </div>
+        );
+    }
+
+    const menuButton = (onEdit || onDelete) && (
+        <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+                <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-1 text-gray-400 hover:text-gray-200 rounded transition-colors opacity-0 group-hover:opacity-100"
+                >
+                    <MoreHorizontal className="w-4 h-4" />
+                </button>
+            </DropdownMenu.Trigger>
+
+            <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                    className="min-w-[160px] bg-gray-800 rounded-lg shadow-lg border border-gray-700 p-1 z-50"
+                    sideOffset={5}
+                    align="end"
+                >
+                    {onEdit && (
+                        <DropdownMenu.Item
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-200 rounded cursor-pointer outline-none hover:bg-gray-700 focus:bg-gray-700"
+                            onSelect={handleEditStart}
+                        >
+                            <Edit2 className="w-4 h-4" />
+                            {threadPhrases.rename}
+                        </DropdownMenu.Item>
+                    )}
+                    {onDelete && (
+                        <DropdownMenu.Item
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-red-400 rounded cursor-pointer outline-none hover:bg-gray-700 focus:bg-gray-700"
+                            onSelect={handleDelete}
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            {threadPhrases.delete}
+                        </DropdownMenu.Item>
+                    )}
+                </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+    );
+
+    return (
+        <div className="group">
+            <SidebarButton
+                title={thread.title}
+                onClick={() => onSelect?.(thread)}
+                isActive={isActive}
+                justify="start"
+                rightElement={menuButton}
+            />
         </div>
     );
 };

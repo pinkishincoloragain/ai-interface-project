@@ -6,3 +6,4 @@ export * from './ThreadList';
 export * from './ThreadListCollapsed';
 export * from './ThreadSidebarHeader';
 export * from './ThreadSidebarFooter';
+export * from './SearchModal';

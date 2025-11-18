@@ -24,6 +24,7 @@ interface ThreadSidebarProps {
     onEditThread?: (threadId: string, newTitle: string) => void;
     searchQuery?: string;
     onSearchChange?: (query: string) => void;
+    onOpenSearch?: () => void;
     isCollapsed?: boolean;
     onToggleCollapse?: () => void;
     className?: string;
@@ -37,7 +38,7 @@ export const ThreadSidebar: React.FC<ThreadSidebarProps> = ({
     onDeleteThread,
     onEditThread,
     searchQuery = '',
-    onSearchChange,
+    onOpenSearch,
     isCollapsed = false,
     onToggleCollapse,
     className = '',
@@ -61,12 +62,7 @@ export const ThreadSidebar: React.FC<ThreadSidebarProps> = ({
             onToggleCollapse={onToggleCollapse}
             className={className}
             header={
-                <ThreadSidebarHeader
-                    isCollapsed={isCollapsed}
-                    onNewThread={onNewThread}
-                    searchQuery={searchQuery}
-                    onSearchChange={onSearchChange}
-                />
+                <ThreadSidebarHeader isCollapsed={isCollapsed} onNewThread={onNewThread} onOpenSearch={onOpenSearch} />
             }
             footer={<ThreadSidebarFooter isCollapsed={isCollapsed} />}
         >
