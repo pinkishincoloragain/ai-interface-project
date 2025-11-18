@@ -3,10 +3,13 @@ import { createAuthorizationHeader } from '@/shared/lib/headers';
 
 export abstract class BaseApiClient {
     protected apiBase: string;
+    protected streamingBase: string;
 
     constructor() {
         // Use AWS Lambda API Gateway endpoint
         this.apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+        // Use Lambda Function URL for real-time streaming
+        this.streamingBase = import.meta.env.VITE_STREAMING_URL || this.apiBase;
     }
 
     protected async getAuthHeaders(): Promise<Record<string, string>> {
@@ -40,7 +43,8 @@ export abstract class BaseApiClient {
     protected async streamRequest(endpoint: string, options: RequestInit = {}): Promise<Response> {
         const headers = await this.getAuthHeaders();
 
-        const response = await fetch(`${this.apiBase}${endpoint}`, {
+        // Use streaming URL for real-time streaming support
+        const response = await fetch(`${this.streamingBase}${endpoint}`, {
             ...options,
             headers: { ...headers, ...options.headers },
         });
