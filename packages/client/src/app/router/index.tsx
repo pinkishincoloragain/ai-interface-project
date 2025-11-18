@@ -25,10 +25,21 @@ const indexRoute = createRoute({
     ),
 });
 
-// Chat route
+// Chat route (new chat)
 const chatRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/chat',
+    component: () => (
+        <React.Suspense fallback={<div>Loading...</div>}>
+            <App />
+        </React.Suspense>
+    ),
+});
+
+// Chat route with ID (specific chat)
+const chatWithIdRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/chat/$chatId',
     component: () => (
         <React.Suspense fallback={<div>Loading...</div>}>
             <App />
@@ -62,7 +73,7 @@ const threadRoute = createRoute({
 });
 
 // Create route tree
-const routeTree = rootRoute.addChildren([indexRoute, chatRoute, settingsRoute, threadRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, chatRoute, chatWithIdRoute, settingsRoute, threadRoute]);
 
 // Create router
 export const router = createRouter({ routeTree });
