@@ -3,9 +3,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { authApiClient } from '@/shared/api/authApi';
 import { sessionStorage } from '@/shared/lib/sessionStorage';
+import { authErrorHandler } from '@/shared/lib/authErrorHandler';
 import { useChatStore } from '@/features/chat/model/store';
 import { useThreadStore } from '@/features/thread/model/store';
 import { useAuthStore } from './store';
+import type { Session, User } from '@/shared/types/auth';
 
 export function useAuth() {
     const [previousUserId, setPreviousUserId] = useState<string | null>(null);
@@ -25,164 +27,151 @@ export function useAuth() {
         reset,
     } = useAuthStore();
 
-    // Clear application state
+    // Clear all application data
     const clearApplicationState = useCallback(() => {
-        // Clear chat store
         useChatStore.getState().clearMessages();
         useChatStore.getState().setCurrentThreadId(undefined);
         useChatStore.getState().setLoading(false);
         useChatStore.getState().setMessagesInitialized(false);
-
-        // Clear thread store
         useThreadStore.getState().clearThreads();
-
-        // Clear React Query cache
         queryClient.clear();
     }, [queryClient]);
 
+    // Invalidate and clear session
+    const invalidateSession = useCallback(() => {
+        sessionStorage.removeSession();
+        setLoggedIn(false);
+        clearApplicationState();
+    }, [setLoggedIn, clearApplicationState]);
+
+    // Restore and verify session from storage
+    const restoreSession = useCallback(
+        async (storedSession: Session): Promise<User | null> => {
+            try {
+                const { user, error } = await authApiClient.getUser(storedSession.access_token);
+
+                if (user && !error) {
+                    setUser(user);
+                    setSession(storedSession);
+                    setPreviousUserId(user.id);
+                    return user;
+                }
+
+                invalidateSession();
+                return null;
+            } catch {
+                invalidateSession();
+                return null;
+            }
+        },
+        [setUser, setSession, invalidateSession]
+    );
+
+    // Handle initial auto-login attempt
     useEffect(() => {
-        // Auto-login check
-        if (!hasAttemptedAutoLogin) {
+        if (hasAttemptedAutoLogin) return;
+
+        (async () => {
             setAttemptedAutoLogin(true);
 
-            if (isLoggedIn) {
-                // Try to restore session from localStorage
-                const storedSession = sessionStorage.getSession();
-
-                if (storedSession && sessionStorage.isSessionValid(storedSession)) {
-                    // Verify session with server
-                    authApiClient
-                        .getUser(storedSession.access_token)
-                        .then(({ user, error }) => {
-                            if (user && !error) {
-                                setUser(user);
-                                setSession(storedSession);
-                                setPreviousUserId(user.id);
-                            } else {
-                                // Invalid session, clear everything
-                                sessionStorage.removeSession();
-                                setLoggedIn(false);
-                                clearApplicationState();
-                            }
-                            setLoading(false);
-                        })
-                        .catch(() => {
-                            // Network error or server error, clear session
-                            sessionStorage.removeSession();
-                            setLoggedIn(false);
-                            clearApplicationState();
-                            setLoading(false);
-                        });
-                } else {
-                    // No valid session, reset login state
-                    setLoggedIn(false);
-                    clearApplicationState();
-                    setLoading(false);
-                }
-            } else {
-                // User should start logged out
+            // User should start logged out - nothing to restore
+            if (!isLoggedIn) {
                 setLoading(false);
+                return;
             }
-        } else {
-            // Already attempted auto-login, but check if we need to restore user state
-            if (isLoggedIn && !user) {
-                // User is marked as logged in but no user state - restore from session
-                const storedSession = sessionStorage.getSession();
 
-                if (storedSession && sessionStorage.isSessionValid(storedSession)) {
-                    // Verify session with server
-                    authApiClient
-                        .getUser(storedSession.access_token)
-                        .then(({ user, error }) => {
-                            if (user && !error) {
-                                setUser(user);
-                                setSession(storedSession);
-                                setPreviousUserId(user.id);
-                            } else {
-                                // Invalid session, clear everything
-                                sessionStorage.removeSession();
-                                setLoggedIn(false);
-                                clearApplicationState();
-                            }
-                            setLoading(false);
-                        })
-                        .catch(() => {
-                            // Network error or server error, clear session
-                            sessionStorage.removeSession();
-                            setLoggedIn(false);
-                            clearApplicationState();
-                            setLoading(false);
-                        });
-                } else {
-                    // No valid session, reset login state
-                    setLoggedIn(false);
-                    clearApplicationState();
-                    setLoading(false);
-                }
+            // Check for stored session
+            const storedSession = sessionStorage.getSession();
+            const hasValidStoredSession = storedSession && sessionStorage.isSessionValid(storedSession);
+
+            if (hasValidStoredSession) {
+                await restoreSession(storedSession);
             } else {
-                setLoading(false);
+                invalidateSession();
             }
-        }
-    }, [
-        hasAttemptedAutoLogin,
-        isLoggedIn,
-        user,
-        setAttemptedAutoLogin,
-        setLoggedIn,
-        queryClient,
-        clearApplicationState,
-    ]);
 
-    const signIn = async (email: string, password: string) => {
-        const { user, session, error } = await authApiClient.login(email, password);
+            setLoading(false);
+        })();
+    }, [hasAttemptedAutoLogin, isLoggedIn, setAttemptedAutoLogin, setLoading, restoreSession, invalidateSession]);
 
-        if (user && session && !error) {
-            setUser(user);
-            setSession(session);
-            sessionStorage.setSession(session);
-            setLoggedIn(true);
+    // Restore user state if logged in but missing user data
+    useEffect(() => {
+        if (!hasAttemptedAutoLogin) return;
+        if (!isLoggedIn || user) return;
 
-            // Check if user changed
-            const currentUserId = user.id;
-            if (previousUserId && previousUserId !== currentUserId) {
+        (async () => {
+            const storedSession = sessionStorage.getSession();
+            const hasValidStoredSession = storedSession && sessionStorage.isSessionValid(storedSession);
+
+            if (hasValidStoredSession) {
+                await restoreSession(storedSession);
+            } else {
+                invalidateSession();
+            }
+
+            setLoading(false);
+        })();
+    }, [hasAttemptedAutoLogin, isLoggedIn, user, setLoading, restoreSession, invalidateSession]);
+
+    // Persist authenticated session and update state
+    const persistAuthenticatedSession = useCallback(
+        (user: User, session: Session) => {
+            // Check if user changed and clear state if needed
+            const userChanged = previousUserId && previousUserId !== user.id;
+            if (userChanged) {
                 clearApplicationState();
             }
-            setPreviousUserId(currentUserId);
 
-            // Navigate to chat after successful login
-            navigate({ to: '/chat' });
-        }
-
-        return { data: { user, session }, error: error ? { message: error } : null };
-    };
-
-    const signUp = async (email: string, password: string) => {
-        const { user, session, error } = await authApiClient.signup(email, password);
-
-        if (user && session && !error) {
             setUser(user);
             setSession(session);
             sessionStorage.setSession(session);
             setLoggedIn(true);
             setPreviousUserId(user.id);
+        },
+        [previousUserId, setUser, setSession, setLoggedIn, clearApplicationState]
+    );
 
-            // Navigate to chat after successful signup
+    const signIn = useCallback(
+        async (email: string, password: string) => {
+            const { user, session, error } = await authApiClient.login(email, password);
+
+            if (!user || !session || error) {
+                return { data: { user, session }, error: error ? { message: error } : null };
+            }
+
+            persistAuthenticatedSession(user, session);
             navigate({ to: '/chat' });
-        }
 
-        return { data: { user, session }, error: error ? { message: error } : null };
-    };
+            return { data: { user, session }, error: null };
+        },
+        [persistAuthenticatedSession, navigate]
+    );
 
-    const signOut = async () => {
+    const signUp = useCallback(
+        async (email: string, password: string) => {
+            const { user, session, error } = await authApiClient.signup(email, password);
+
+            if (!user || !session || error) {
+                return { data: { user, session }, error: error ? { message: error } : null };
+            }
+
+            persistAuthenticatedSession(user, session);
+            navigate({ to: '/chat' });
+
+            return { data: { user, session }, error: null };
+        },
+        [persistAuthenticatedSession, navigate]
+    );
+
+    const signOut = useCallback(async () => {
+        // Attempt to logout via API if session exists
         let apiError = null;
-
-        // Call logout API if we have a session
         if (session?.access_token) {
             const { error } = await authApiClient.logout(session.access_token);
             apiError = error;
         }
 
-        // Clear local state regardless of API result
+        // Clear all local state regardless of API result
         setUser(null);
         setSession(null);
         sessionStorage.removeSession();
@@ -190,11 +179,17 @@ export function useAuth() {
         clearApplicationState();
         setPreviousUserId(null);
 
-        // Navigate to landing page after sign out
         navigate({ to: '/' });
 
         return { error: apiError ? { message: apiError } : null };
-    };
+    }, [session, setUser, setSession, reset, clearApplicationState, navigate]);
+
+    // Register logout handler with global auth error handler
+    useEffect(() => {
+        authErrorHandler.setLogoutHandler(() => {
+            signOut();
+        });
+    }, [signOut]);
 
     return {
         user,

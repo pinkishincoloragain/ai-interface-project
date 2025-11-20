@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ThreadWithMessages, ThreadSidebar, useThreadViewModel, SearchModal } from '@/features/thread';
+import { useModifierKeyShortcut } from '@/shared/hooks';
 
 interface ThreadSidebarContainerProps {
     onThreadSelect?: (threadId: string) => void;
@@ -20,6 +21,17 @@ export const ThreadSidebarContainer: React.FC<ThreadSidebarContainerProps> = ({
     const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
     const { threads, error, updateThread, deleteThread, selectThread } = useThreadViewModel();
+
+    // Keyboard shortcuts
+    // Cmd/Ctrl + K to open search
+    useModifierKeyShortcut({ key: 'k', modifier: true }, () => {
+        setIsSearchModalOpen(true);
+    });
+
+    // Shift + Cmd/Ctrl + O to create new chat
+    useModifierKeyShortcut({ key: 'o', modifier: true, shift: true }, () => {
+        handleNewThread();
+    });
 
     const handleThreadSelect = (threadId: string) => {
         selectThread(threadId);

@@ -10,14 +10,20 @@ export const useThreadsQuery = () => {
     const query = useQuery({
         queryKey: QUERY_KEYS.threads.list(),
         queryFn: threadApiClient.getThreads.bind(threadApiClient),
+        retry: 1, // Only retry once
+        retryDelay: 1000, // Wait 1 second before retrying
+        staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
     });
 
     // Update store when data changes
     React.useEffect(() => {
         if (query.data) {
             setThreads(query.data.threads);
+        } else if (query.isError) {
+            // If there's an error, set threads to empty array so UI doesn't hang
+            setThreads([]);
         }
-    }, [query.data, setThreads]);
+    }, [query.data, query.isError, setThreads]);
 
     return query;
 };
@@ -40,9 +46,11 @@ export const useThreadMessagesQuery = (threadId?: string) => {
     const effectiveThreadId = threadId || currentThreadId;
 
     const query = useQuery({
-        queryKey: QUERY_KEYS.threads.messages(effectiveThreadId || ''),
+        queryKey: QUERY_KEYS.threads.messages(effectiveThreadId || 'none'),
         queryFn: () => threadApiClient.getThreadMessages(effectiveThreadId!),
         enabled: !!effectiveThreadId && !loading, // Don't fetch during active streaming
+        retry: false, // Don't retry failed requests
+        staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
     });
 
     // Clear messages when switching to null conversation

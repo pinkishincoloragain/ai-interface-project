@@ -1,6 +1,7 @@
 import React from 'react';
 import { Edit, Search } from 'lucide-react';
 import { SidebarButton } from '@/shared/ui';
+import { usePlatform } from '@/shared/hooks';
 import { threadPhrases } from '../../lib';
 
 interface ThreadSidebarHeaderProps {
@@ -14,6 +15,12 @@ export const ThreadSidebarHeader: React.FC<ThreadSidebarHeaderProps> = ({
     onNewThread,
     onOpenSearch,
 }) => {
+    const { modifierSymbol } = usePlatform();
+
+    // Generate keyboard shortcuts display
+    const searchShortcut = `${modifierSymbol} K`;
+    const newChatShortcut = `⇧ ${modifierSymbol} O`;
+
     if (isCollapsed) {
         return (
             <div className="flex flex-col space-y-1">
@@ -22,7 +29,7 @@ export const ThreadSidebarHeader: React.FC<ThreadSidebarHeaderProps> = ({
                     <button
                         onClick={onNewThread}
                         className="w-full py-3 text-gray-200 hover:bg-gray-800 rounded-lg transition-colors flex items-center justify-center"
-                        title={threadPhrases.newChat}
+                        title={`${threadPhrases.newChat} (${newChatShortcut})`}
                     >
                         <Edit className="w-4 h-4" />
                     </button>
@@ -32,7 +39,7 @@ export const ThreadSidebarHeader: React.FC<ThreadSidebarHeaderProps> = ({
                 <button
                     onClick={onOpenSearch}
                     className="w-full py-3 text-gray-200 hover:bg-gray-800 rounded-lg transition-colors flex items-center justify-center"
-                    title={threadPhrases.searchChats}
+                    title={`${threadPhrases.searchChats} (${searchShortcut})`}
                 >
                     <Search className="w-4 h-4" />
                 </button>
@@ -43,10 +50,22 @@ export const ThreadSidebarHeader: React.FC<ThreadSidebarHeaderProps> = ({
     return (
         <div className="space-y-1">
             {/* New Chat Button - Full width at top */}
-            {onNewThread && <SidebarButton icon={Edit} title={threadPhrases.newChat} onClick={onNewThread} />}
+            {onNewThread && (
+                <SidebarButton
+                    icon={Edit}
+                    title={threadPhrases.newChat}
+                    onClick={onNewThread}
+                    shortcut={newChatShortcut}
+                />
+            )}
 
             {/* Search Button */}
-            <SidebarButton icon={Search} title={threadPhrases.searchChats} onClick={onOpenSearch} />
+            <SidebarButton
+                icon={Search}
+                title={threadPhrases.searchChats}
+                onClick={onOpenSearch}
+                shortcut={searchShortcut}
+            />
         </div>
     );
 };

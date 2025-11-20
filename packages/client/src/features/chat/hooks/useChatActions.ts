@@ -2,15 +2,16 @@ import { useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { chatService, type SendMessageParams } from '../services';
 import { QUERY_KEYS } from '@/shared/lib/react-query';
-import { useThreadStore, useChatStore } from '@/features';
+import { useChatStore, useThreadStore } from '@/features';
+import { useModelPreference } from '@/shared/hooks';
 
 /**
  * Hook for chat actions - sending messages, managing state
- * Following SRP: Only handles UI-related chat actions
  */
 export const useChatActions = () => {
     const queryClient = useQueryClient();
     const addThread = useThreadStore((state) => state.addThread);
+    const { model } = useModelPreference();
 
     const sendMessageMutation = useMutation({
         mutationFn: (params: SendMessageParams) => chatService.sendMessage(params),
@@ -23,7 +24,7 @@ export const useChatActions = () => {
         async (content: string, threadId?: string): Promise<string | undefined> => {
             try {
                 const wasNewThread = !threadId;
-                const resultThreadId = await sendMessageMutation.mutateAsync({ content, threadId });
+                const resultThreadId = await sendMessageMutation.mutateAsync({ content, threadId, model });
 
                 // If a new thread was created, add it optimistically to the store and refetch
                 if (wasNewThread && resultThreadId) {
@@ -53,7 +54,7 @@ export const useChatActions = () => {
                 return undefined;
             }
         },
-        [sendMessageMutation, queryClient, addThread]
+        [sendMessageMutation, queryClient, addThread, model]
     );
 
     const stopStreaming = useCallback(() => {

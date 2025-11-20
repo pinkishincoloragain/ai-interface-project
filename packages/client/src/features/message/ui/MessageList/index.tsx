@@ -14,7 +14,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages }) => (
         autoScroll={true}
         showScrollButton={true}
     >
-        <div className="space-y-4">
+        <div className="w-full space-y-4">
             {messages.map((message) => (
                 <MessageItem key={message.id} message={message} />
             ))}

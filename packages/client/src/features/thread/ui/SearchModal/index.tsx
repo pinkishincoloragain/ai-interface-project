@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Search, X, MessageSquare } from 'lucide-react';
 import type { ThreadItemData } from '../ThreadItem';
@@ -13,9 +13,26 @@ interface SearchModalProps {
 
 export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, threads, onThreadSelect }) => {
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedIndex, setSelectedIndex] = useState(0);
+    const selectedItemRef = useRef<HTMLButtonElement>(null);
 
     // Filter threads based on search query
     const filteredThreads = threads.filter((thread) => thread.title.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    // Reset selected index when search query changes
+    useEffect(() => {
+        setSelectedIndex(0);
+    }, [searchQuery]);
+
+    // Scroll selected item into view
+    useEffect(() => {
+        if (selectedItemRef.current) {
+            selectedItemRef.current.scrollIntoView({
+                block: 'nearest',
+                behavior: 'smooth',
+            });
+        }
+    }, [selectedIndex]);
 
     const handleThreadClick = (thread: ThreadItemData) => {
         onThreadSelect?.(thread);
@@ -26,6 +43,28 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, threa
     const handleClose = () => {
         onClose();
         setSearchQuery('');
+        setSelectedIndex(0);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (filteredThreads.length === 0) return;
+
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                setSelectedIndex((prev) => (prev + 1) % filteredThreads.length);
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                setSelectedIndex((prev) => (prev - 1 + filteredThreads.length) % filteredThreads.length);
+                break;
+            case 'Enter':
+                e.preventDefault();
+                if (filteredThreads[selectedIndex]) {
+                    handleThreadClick(filteredThreads[selectedIndex]);
+                }
+                break;
+        }
     };
 
     return (
@@ -42,6 +81,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, threa
                                     type="text"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyDown={handleKeyDown}
                                     placeholder={threadPhrases.searchPlaceholder}
                                     className="flex-1 bg-transparent text-gray-200 placeholder-gray-500 outline-none text-lg"
                                     autoFocus
@@ -68,11 +108,16 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, threa
                                 </div>
                             ) : (
                                 <div className="space-y-1">
-                                    {filteredThreads.map((thread) => (
+                                    {filteredThreads.map((thread, index) => (
                                         <button
                                             key={thread.id}
+                                            ref={index === selectedIndex ? selectedItemRef : null}
                                             onClick={() => handleThreadClick(thread)}
-                                            className="w-full p-3 text-left text-gray-200 hover:bg-gray-800 rounded-lg transition-colors group"
+                                            className={`w-full p-3 text-left text-gray-200 rounded-lg transition-colors group ${
+                                                index === selectedIndex
+                                                    ? 'bg-gray-800 ring-2 ring-blue-500'
+                                                    : 'hover:bg-gray-800'
+                                            }`}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <MessageSquare className="w-4 h-4 text-gray-400 flex-shrink-0" />

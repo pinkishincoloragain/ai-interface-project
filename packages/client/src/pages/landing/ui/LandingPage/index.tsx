@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from '@tanstack/react-router';
-import { Button } from '../../../../shared/ui/Button';
+import { Button } from '@/shared';
 
 export const LandingPage: React.FC = () => (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">

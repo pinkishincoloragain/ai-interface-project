@@ -25,6 +25,7 @@ export const useChat = (threadId?: string) => {
         messages: chatState.messages,
         currentThreadId: chatState.currentThreadId,
         loading: chatState.isLoading,
+        isStreaming: chatState.isStreaming, // Only true when AI is generating
         isError: chatState.isError || chatActions.isError,
         error: chatState.error || chatActions.error,
 

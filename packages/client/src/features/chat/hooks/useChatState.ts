@@ -1,5 +1,4 @@
-// No React imports needed for this hook
-import { useChatStore } from '../model/store';
+import { useChatStore } from '@/features/chat';
 import { useThreadMessagesQuery, useThreadsQuery } from '@/features/thread';
 
 /**
@@ -18,7 +17,8 @@ export const useChatState = (threadId?: string) => {
     useThreadsQuery();
 
     // Computed state - simplified to avoid memoization complexity
-    const isLoading = loading || threadMessagesQuery.isLoading;
+    // Only consider query loading if we actually have a thread to load
+    const isLoading = loading || (threadId ? threadMessagesQuery.isLoading : false);
     const { isError } = threadMessagesQuery;
     const { error } = threadMessagesQuery;
 
@@ -27,6 +27,7 @@ export const useChatState = (threadId?: string) => {
         currentThreadId,
         messagesInitialized,
         isLoading,
+        isStreaming: loading, // Only true when AI is actively generating, not when loading history
         isError,
         error,
     };

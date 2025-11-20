@@ -6,6 +6,7 @@ import { useChatStore } from '../model/store';
 export interface SendMessageParams {
     content: string;
     threadId?: string;
+    model?: string;
 }
 
 export interface ChatServiceDependencies {
@@ -28,7 +29,7 @@ export class ChatService {
         private streamingService: StreamingService
     ) {}
 
-    async sendMessage({ content, threadId }: SendMessageParams): Promise<string | undefined> {
+    async sendMessage({ content, threadId, model }: SendMessageParams): Promise<string | undefined> {
         const { setLoading, setCurrentThreadId, currentThreadId } = useChatStore.getState();
 
         // Create new AbortController for this request
@@ -61,7 +62,8 @@ export class ChatService {
                 requestMessages,
                 effectiveThreadId,
                 assistantPlaceholder.id,
-                this.abortController.signal
+                this.abortController.signal,
+                model
             );
 
             // Start streaming with callbacks

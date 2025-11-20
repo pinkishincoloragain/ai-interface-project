@@ -73,19 +73,23 @@ export const ThreadItem: React.FC<ThreadItemProps> = ({ thread, isActive = false
     const menuButton = (onEdit || onDelete) && (
         <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
-                <button
+                <div
                     onClick={(e) => e.stopPropagation()}
-                    className="p-1 text-gray-400 hover:text-gray-200 rounded transition-colors opacity-0 group-hover:opacity-100"
+                    className={`p-0.5 text-gray-400 hover:text-gray-200 rounded transition-colors ${
+                        isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+                    } data-[state=open]:opacity-100`}
+                    aria-label={threadPhrases.rename}
+                    title={threadPhrases.rename}
                 >
                     <MoreHorizontal className="w-4 h-4" />
-                </button>
+                </div>
             </DropdownMenu.Trigger>
 
             <DropdownMenu.Portal>
                 <DropdownMenu.Content
                     className="min-w-[160px] bg-gray-800 rounded-lg shadow-lg border border-gray-700 p-1 z-50"
-                    sideOffset={5}
-                    align="end"
+                    sideOffset={3}
+                    align="start"
                 >
                     {onEdit && (
                         <DropdownMenu.Item
