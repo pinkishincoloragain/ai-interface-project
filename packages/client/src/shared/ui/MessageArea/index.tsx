@@ -74,10 +74,10 @@ export const MessageArea: React.FC<MessageAreaProps> = ({
     };
 
     return (
-        <div className={`relative h-full flex flex-col ${className}`}>
+        <div className={`relative h-full flex flex-col justify-center items-center ${className}`}>
             <div
                 ref={scrollContainerRef}
-                className="flex-1 overflow-y-auto p-4"
+                className="flex-1 overflow-y-auto px-[25%]"
                 onScroll={throttledHandleScroll}
                 style={{
                     scrollBehavior: 'smooth',

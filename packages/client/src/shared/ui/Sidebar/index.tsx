@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { ScrollArea } from '@radix-ui/react-scroll-area';
+import React, { useState, useRef, useEffect } from 'react';
 import { PanelLeft, PanelRight } from 'lucide-react';
 import { sharedPhrases } from '@/shared/lib';
 import logo from '@/assets/logo.png';
@@ -22,6 +21,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
     className = '',
 }) => {
     const [isHovered, setIsHovered] = useState(false);
+    const [showFade, setShowFade] = useState(false);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Check if content is scrollable
+    useEffect(() => {
+        const checkScroll = () => {
+            const container = scrollContainerRef.current;
+            if (container) {
+                const hasScroll = container.scrollHeight > container.clientHeight;
+                const isAtBottom = container.scrollHeight - container.scrollTop === container.clientHeight;
+                setShowFade(hasScroll && !isAtBottom);
+            }
+        };
+
+        checkScroll();
+        const container = scrollContainerRef.current;
+        container?.addEventListener('scroll', checkScroll);
+        window.addEventListener('resize', checkScroll);
+
+        return () => {
+            container?.removeEventListener('scroll', checkScroll);
+            window.removeEventListener('resize', checkScroll);
+        };
+    }, [children]);
 
     return (
         <div
@@ -32,8 +55,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* Collapse button at the top */}
             {onToggleCollapse && (
                 <div
-                    className={`px-2 py-3 flex items-center border-b border-gray-700 flex-shrink-0 ${
-                        isCollapsed ? 'justify-center' : 'justify-between'
+                    className={`py-3 flex items-center border-b border-gray-700 flex-shrink-0 ${
+                        isCollapsed ? 'px-2 justify-center' : 'pr-2 pl-4 justify-between'
                     }`}
                 >
                     {/* Logo - shown when expanded or collapsed */}
@@ -80,7 +103,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
             )}
 
-            <ScrollArea className="flex-1">{children}</ScrollArea>
+            {/* Scrollable content area with fade effect */}
+            <div className="flex-1 relative overflow-hidden">
+                <div
+                    ref={scrollContainerRef}
+                    className="h-full overflow-y-auto overflow-x-hidden"
+                    style={{
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: '#4B5563 transparent',
+                    }}
+                >
+                    {children}
+                </div>
+                {/* Fade overlay at the bottom */}
+                {showFade && (
+                    <div
+                        className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none transition-opacity duration-300"
+                        style={{
+                            background: 'linear-gradient(to bottom, transparent, rgb(17, 24, 39) 90%)',
+                        }}
+                    />
+                )}
+            </div>
 
             {footer && <div className="border-t border-gray-700 flex-shrink-0">{footer}</div>}
         </div>

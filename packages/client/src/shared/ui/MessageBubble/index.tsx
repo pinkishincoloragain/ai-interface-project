@@ -22,10 +22,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     const isUser = variant === 'user';
 
     return (
-        <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+        <div className={`flex ${isUser ? 'justify-end' : 'justify-center'}`}>
             <div
-                className={`max-w-3/4 rounded-lg px-4 py-2 ${
-                    isUser ? 'bg-blue-600 text-white' : 'bg-gray-700 text-white'
+                className={`rounded-lg py-2 text-white ${
+                    isUser ? 'px-4 bg-blue-600' : 'px-0 w-full'
                 } ${getStatusStyles(status)} ${className}`}
             >
                 {children}
