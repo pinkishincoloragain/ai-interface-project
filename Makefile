@@ -73,12 +73,13 @@ frontend-env:
 	@echo -e "$(YELLOW)⚙️ Updating frontend .env.production from Terraform outputs...$(NC)"
 	@cd $(TF_DIR) && \
 	API_ENDPOINT=$$(terraform output -raw api_gateway_url) && \
+	STREAMING_URL=$$(terraform output -raw lambda_streaming_url) && \
 	CLOUDFRONT_URL=$$(terraform output -raw cloudfront_url) && \
 	USER_POOL_ID=$$(terraform output -raw user_pool_id) && \
 	USER_POOL_CLIENT_ID=$$(terraform output -raw user_pool_client_id) && \
 	cd .. && \
-	printf "VITE_API_BASE_URL=%s\nVITE_USER_POOL_ID=%s\nVITE_USER_POOL_CLIENT_ID=%s\n" \
-		"$$CLOUDFRONT_URL" "$$USER_POOL_ID" "$$USER_POOL_CLIENT_ID" > $(CLIENT_DIR)/.env.production
+	printf "VITE_API_BASE_URL=%s\nVITE_STREAMING_URL=%s\nVITE_USER_POOL_ID=%s\nVITE_USER_POOL_CLIENT_ID=%s\n" \
+		"$$API_ENDPOINT" "$${STREAMING_URL%/}" "$$USER_POOL_ID" "$$USER_POOL_CLIENT_ID" > $(CLIENT_DIR)/.env.production
 
 client-deploy:
 	@echo -e "$(YELLOW)📤 Deploying frontend to S3...$(NC)"
@@ -128,12 +129,14 @@ summary:
 	@cd $(TF_DIR); \
 	CLOUDFRONT_URL=$$(terraform output -raw cloudfront_url 2>/dev/null || echo "N/A"); \
 	API_ENDPOINT=$$(terraform output -raw api_gateway_url 2>/dev/null || echo "N/A"); \
+	STREAMING_URL=$$(terraform output -raw lambda_streaming_url 2>/dev/null || echo "N/A"); \
 	WEBSITE_BUCKET=$$(terraform output -raw website_bucket_name 2>/dev/null || echo "N/A"); \
 	USER_POOL_ID=$$(terraform output -raw user_pool_id 2>/dev/null || echo "N/A"); \
 	USER_POOL_CLIENT_ID=$$(terraform output -raw user_pool_client_id 2>/dev/null || echo "N/A"); \
 	API_KEYS_SECRET_ARN=$$(terraform output -raw api_keys_secret_arn 2>/dev/null || echo "N/A"); \
 	echo -e "   🌐 Frontend URL: $(GREEN)$$CLOUDFRONT_URL$(NC)"; \
 	echo -e "   🔗 API Endpoint: $(GREEN)$$API_ENDPOINT$(NC)"; \
+	echo -e "   ⚡ Streaming URL: $(GREEN)$$STREAMING_URL$(NC)"; \
 	echo -e "   🪣 S3 Bucket: $(GREEN)$$WEBSITE_BUCKET$(NC)"; \
 	echo -e "   🔐 User Pool ID: $(GREEN)$$USER_POOL_ID$(NC)"; \
 	echo -e "   🗝️  Client ID: $(GREEN)$$USER_POOL_CLIENT_ID$(NC)"; \

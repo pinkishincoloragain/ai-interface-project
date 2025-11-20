@@ -4,20 +4,43 @@ A fully serverless AI chat application built with React and deployed on AWS infr
 
 ## 🏗️ Architecture
 
-```
-[브라우저(React)]
-   ↕️ https
-[CloudFront] ──▶ [S3 정적 호스팅]
-   ↕️ https (JWT)
-[API Gateway (HTTP API)]
-   ↕️ invoke
-[Lambda (Node/Fastify)]
-   ├─▶ [AI 모델 엔드포인트 (OpenAI/Bedrock)]
-   └─▶ [DynamoDB: 대화 로그/세션]
-[Secrets Manager/SSM]: API 키, 엔드포인트, 모델 설정
-[Cognito]: 로그인(JWT 발급)
-[CloudWatch]: 로그/메트릭/알람
-```
+### Infrastructure Overview
+
+The application is built on AWS serverless infrastructure, managed entirely through Terraform. Below are comprehensive diagrams showing both the infrastructure components and service interactions.
+
+#### Terraform Infrastructure Graph
+
+This diagram shows all AWS resources provisioned by Terraform and their relationships:
+
+![Terraform Infrastructure](terraform-infrastructure.png)
+
+**Key Infrastructure Components:**
+
+- **CloudFront CDN**: Global content delivery with S3 origin for static files and API Gateway for backend
+- **S3 Bucket**: Static website hosting for React frontend (HTML, CSS, JS)
+- **API Gateway**: REST API endpoint routing requests to Lambda functions
+- **Lambda Functions**: Two functions - main API handler and streaming handler for real-time responses
+- **DynamoDB**: Three tables (Users, Threads, Messages) with Global Secondary Indexes
+- **Cognito**: User authentication and JWT token management
+- **Secrets Manager**: Secure storage for API keys and configuration
+- **CloudWatch**: Centralized logging and monitoring
+
+#### Services Architecture Graph
+
+This diagram illustrates the application's service layers and data flow:
+
+![Services Architecture](services-architecture.png)
+
+**Service Layers:**
+
+- **Frontend (React)**: Feature-based architecture following Feature-Sliced Design (FSD)
+    - Features: Auth, Chat, Thread, Message, Assistant, Profile
+    - State: XState (complex flows), Zustand (UI state), TanStack Query (server state)
+- **Backend (Lambda)**: TypeScript-based API with service-oriented architecture
+    - Routes: Chat, Stream, Auth, Thread
+    - Services: OpenAI, Auth, Database, Secrets
+- **External Services**: OpenAI API for AI completions, AWS Cognito for authentication
+- **Data Layer**: DynamoDB tables with optimized indexes for efficient queries
 
 ## Tech Stack
 
@@ -62,8 +85,6 @@ A fully serverless AI chat application built with React and deployed on AWS infr
     ```
 
 4. **Access your app** at the CloudFront URL provided in the deployment output.
-
-![Deployment Architecture](terraform/deployment.png)
 
 ## 📁 Project Structure
 
@@ -251,77 +272,7 @@ terraform apply
 
 \*Required for AWS deployment
 
-## Infrastructure Architecture
-
-```mermaid
-graph TB
-    %% Client Layer
-    subgraph "Frontend (Vite + React)"
-        Client[React Client<br/>Vite + TypeScript<br/>TailwindCSS]
-        Router[TanStack Router]
-        StateManager[State Management<br/>XState + Zustand]
-    end
-
-    %% Authentication Layer
-    subgraph "Authentication"
-        Auth[AWS Cognito<br/>Email/Password<br/>JWT Tokens]
-    end
-
-    %% API Gateway / Lambda Functions
-    subgraph "AWS Lambda (Node.js)"
-        ChatFunc["/api/chat"<br/>OpenAI Integration<br/>Non-streaming]
-        StreamFunc["/api/stream"<br/>OpenAI Streaming<br/>SSE Response]
-        AuthFunc["/api/auth"<br/>User Authentication<br/>Cognito Integration]
-    end
-
-    %% External Services
-    subgraph "External APIs"
-        OpenAI[OpenAI API<br/>GPT-4o-mini<br/>Chat Completions]
-    end
-
-    %% Database Layer
-    subgraph "AWS DynamoDB"
-        subgraph "Tables"
-            ThreadsTable[threads<br/>- id, title, user_id<br/>- created_at, updated_at]
-            MessagesTable[messages<br/>- id, thread_id, user_id<br/>- role, content, created_at]
-            UsersTable[users<br/>- id, email<br/>- Managed by Cognito]
-        end
-    end
-
-    %% Data Flow Connections
-    Client --> Router
-    Router --> StateManager
-    StateManager --> Auth
-
-    Client -->|"REST/SSE"| ChatFunc
-    Client -->|"SSE Streaming"| StreamFunc
-    Client -->|"Auth"| AuthFunc
-
-    Auth -->|"JWT Verification"| ChatFunc
-    Auth -->|"JWT Verification"| StreamFunc
-
-    ChatFunc -->|"API Calls"| OpenAI
-    StreamFunc -->|"Streaming API"| OpenAI
-
-    AuthFunc -->|"User Data"| UsersTable
-    ChatFunc -->|"Message Storage"| MessagesTable
-    StreamFunc -->|"Thread Management"| ThreadsTable
-    StreamFunc -->|"Message Storage"| MessagesTable
-    %% Styling
-    classDef frontend fill:#e1f5fe
-    classDef backend fill:#f3e5f5
-    classDef database fill:#e8f5e8
-    classDef external fill:#fff3e0
-    classDef auth fill:#fce4ec
-
-    class Client,Router,StateManager frontend
-    class ChatFunc,StreamFunc,AuthFunc backend
-    class ThreadsTable,MessagesTable,UsersTable database
-    class OpenAI external
-    class Auth auth
-```
-
-## Architecture
+## Code Architecture & Design Patterns
 
 This project follows **Feature-Sliced Design (FSD)** principles:
 
@@ -380,20 +331,17 @@ OPENAI_MODEL=gpt-4-turbo    # Extended context
 ### Common Issues
 
 1. **OpenAI API Key Errors**
-
     - Verify `.env` file exists in project root
     - Check API key starts with `sk-`
     - Ensure sufficient credits in OpenAI account
     - Run: `cd packages/server && pnpm test:openai`
 
 2. **Server Startup Errors**
-
     - Verify Node.js v16+
     - Run `pnpm install` to install dependencies
     - Test OpenAI setup: `pnpm test:openai`
 
 3. **Supabase Deployment Issues**
-
     - Check project ID and access token
     - Verify Edge Function secrets are set
     - Review Edge Function logs in Supabase Dashboard
