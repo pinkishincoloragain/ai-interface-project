@@ -1,5 +1,6 @@
 import { sessionStorage } from '@/shared/lib/sessionStorage';
 import { createAuthorizationHeader } from '@/shared/lib/headers';
+import { authErrorHandler } from '@/shared/lib/authErrorHandler';
 
 export abstract class BaseApiClient {
     protected apiBase: string;
@@ -16,7 +17,9 @@ export abstract class BaseApiClient {
         const session = sessionStorage.getSession();
 
         if (!session || !sessionStorage.isSessionValid(session)) {
-            throw new Error('Not authenticated');
+            const error = new Error('Not authenticated');
+            authErrorHandler.handleAuthError();
+            throw error;
         }
 
         return {
@@ -26,33 +29,53 @@ export abstract class BaseApiClient {
     }
 
     protected async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-        const headers = await this.getAuthHeaders();
+        try {
+            const headers = await this.getAuthHeaders();
 
-        const response = await fetch(`${this.apiBase}${endpoint}`, {
-            ...options,
-            headers: { ...headers, ...options.headers },
-        });
+            const response = await fetch(`${this.apiBase}${endpoint}`, {
+                ...options,
+                headers: { ...headers, ...options.headers },
+            });
 
-        if (!response.ok) {
-            throw new Error(`API Error: ${response.status} ${response.statusText}`);
+            if (!response.ok) {
+                // Check for auth errors from server
+                if (response.status === 401 || response.status === 403) {
+                    authErrorHandler.handleAuthError();
+                }
+                throw new Error(`API Error: ${response.status} ${response.statusText}`);
+            }
+
+            return response.json();
+        } catch (error) {
+            // Handle auth errors that might not be caught above
+            authErrorHandler.checkAndHandle(error);
+            throw error;
         }
-
-        return response.json();
     }
 
     protected async streamRequest(endpoint: string, options: RequestInit = {}): Promise<Response> {
-        const headers = await this.getAuthHeaders();
+        try {
+            const headers = await this.getAuthHeaders();
 
-        // Use streaming URL for real-time streaming support
-        const response = await fetch(`${this.streamingBase}${endpoint}`, {
-            ...options,
-            headers: { ...headers, ...options.headers },
-        });
+            // Use streaming URL for real-time streaming support
+            const response = await fetch(`${this.streamingBase}${endpoint}`, {
+                ...options,
+                headers: { ...headers, ...options.headers },
+            });
 
-        if (!response.ok) {
-            throw new Error(`API Error: ${response.status} ${response.statusText}`);
+            if (!response.ok) {
+                // Check for auth errors from server
+                if (response.status === 401 || response.status === 403) {
+                    authErrorHandler.handleAuthError();
+                }
+                throw new Error(`API Error: ${response.status} ${response.statusText}`);
+            }
+
+            return response;
+        } catch (error) {
+            // Handle auth errors that might not be caught above
+            authErrorHandler.checkAndHandle(error);
+            throw error;
         }
-
-        return response;
     }
 }
