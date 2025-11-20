@@ -41,7 +41,7 @@ export const streamingHandler = awslambda.streamifyResponse(
         try {
             // Parse request body
             const body = JSON.parse(event.body || '{}');
-            const { messages, conversationId, messageId: providedMessageId } = body;
+            const { messages, conversationId, messageId: providedMessageId, model } = body;
 
             logger.info('Stream request received', {
                 messageCount: messages?.length,
@@ -70,15 +70,11 @@ export const streamingHandler = awslambda.streamifyResponse(
             } catch (authError) {
                 logger.security('Unauthorized stream request', { error: authError });
 
-                // Set CORS headers for error response
+                // Return 401 error (CORS handled by Lambda Function URL)
                 const errorMetadata = {
                     statusCode: 401,
                     headers: {
                         'Content-Type': 'application/json',
-                        'Access-Control-Allow-Origin': '*',
-                        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                        'Access-Control-Allow-Headers':
-                            'Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token',
                     },
                 };
                 responseStream = awslambda.HttpResponseStream.from(responseStream, errorMetadata);
@@ -111,18 +107,14 @@ export const streamingHandler = awslambda.streamifyResponse(
                 }
             }
 
-            // Write response metadata (headers) with full CORS support
+            // Write response metadata (headers)
+            // Note: CORS headers are handled by Lambda Function URL configuration
             const metadata = {
                 statusCode: 200,
                 headers: {
                     'Content-Type': 'text/event-stream',
                     'Cache-Control': 'no-cache',
                     Connection: 'keep-alive',
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                    'Access-Control-Allow-Headers':
-                        'Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token',
-                    'Access-Control-Expose-Headers': 'X-Amz-Request-Id',
                 },
             };
             responseStream = awslambda.HttpResponseStream.from(responseStream, metadata);
@@ -186,7 +178,7 @@ export const streamingHandler = awslambda.streamifyResponse(
                 }));
 
                 // Stream chunks as they arrive from OpenAI
-                for await (const chunk of openai.createStreamingChatCompletion(openaiMessages)) {
+                for await (const chunk of openai.createStreamingChatCompletion(openaiMessages, model)) {
                     const delta = chunk.choices[0]?.delta?.content;
                     if (delta) {
                         assistantResponse += delta;
@@ -244,15 +236,11 @@ export const streamingHandler = awslambda.streamifyResponse(
             logger.error('Streaming handler error', { duration }, err as Error);
 
             try {
-                // Set CORS headers for error response
+                // Return 500 error (CORS handled by Lambda Function URL)
                 const errorMetadata = {
                     statusCode: 500,
                     headers: {
                         'Content-Type': 'application/json',
-                        'Access-Control-Allow-Origin': '*',
-                        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                        'Access-Control-Allow-Headers':
-                            'Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token',
                     },
                 };
                 responseStream = awslambda.HttpResponseStream.from(responseStream, errorMetadata);

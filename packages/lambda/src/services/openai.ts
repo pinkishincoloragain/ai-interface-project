@@ -31,7 +31,8 @@ export class OpenAIService {
     }
 
     async createChatCompletion(
-        messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]
+        messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+        model?: string
     ): Promise<{ content: string } | null> {
         if (!this.isInitialized() || !this.client) {
             throw new Error('OpenAI service not initialized');
@@ -41,7 +42,7 @@ export class OpenAIService {
             const apiKeys = await secrets.getApiKeys();
 
             const completion = await this.client.chat.completions.create({
-                model: apiKeys.OPENAI_MODEL || 'gpt-4o-mini',
+                model: model || apiKeys.OPENAI_MODEL || 'gpt-4o-mini',
                 messages,
                 max_tokens: parseInt(apiKeys.OPENAI_MAX_TOKENS || '1000'),
                 temperature: parseFloat(apiKeys.OPENAI_TEMPERATURE || '0.7'),
@@ -56,7 +57,8 @@ export class OpenAIService {
     }
 
     async *createStreamingChatCompletion(
-        messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]
+        messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+        model?: string
     ): AsyncGenerator<OpenAI.Chat.Completions.ChatCompletionChunk> {
         if (!this.isInitialized() || !this.client) {
             throw new Error('OpenAI service not initialized');
@@ -66,7 +68,7 @@ export class OpenAIService {
             const apiKeys = await secrets.getApiKeys();
 
             const stream = await this.client.chat.completions.create({
-                model: apiKeys.OPENAI_MODEL || 'gpt-4o-mini',
+                model: model || apiKeys.OPENAI_MODEL || 'gpt-4o-mini',
                 messages,
                 max_tokens: parseInt(apiKeys.OPENAI_MAX_TOKENS || '1000'),
                 temperature: parseFloat(apiKeys.OPENAI_TEMPERATURE || '0.7'),
