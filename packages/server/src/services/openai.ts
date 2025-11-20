@@ -17,11 +17,11 @@ export class OpenAIService {
         this.initialize();
     }
 
-    async createChatCompletion(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]) {
+    async createChatCompletion(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[], model?: string) {
         this.checkInitialized();
         try {
             const completion = await this.client!.chat.completions.create({
-                model: this.model,
+                model: model || this.model,
                 messages,
                 temperature: this.temperature,
                 max_completion_tokens: this.maxTokens,
@@ -34,11 +34,14 @@ export class OpenAIService {
         }
     }
 
-    async createStreamingChatCompletion(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]) {
+    async createStreamingChatCompletion(
+        messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+        model?: string
+    ) {
         this.checkInitialized();
         try {
             const stream = await this.client!.chat.completions.create({
-                model: this.model,
+                model: model || this.model,
                 messages,
                 temperature: this.temperature,
                 max_completion_tokens: this.maxTokens,

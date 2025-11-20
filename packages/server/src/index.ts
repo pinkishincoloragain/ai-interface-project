@@ -49,6 +49,8 @@ async function startServer() {
         try {
             await fastify.register(postgres, {
                 connectionString: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/seamlessai',
+                connectionTimeoutMillis: 3000, // 3 second timeout
+                query_timeout: 5000, // 5 second query timeout
             });
 
             // Initialize services
@@ -67,6 +69,7 @@ async function startServer() {
             console.warn('⚠️  Database connection failed - running in streaming-only mode');
             console.warn('   Auth endpoints will not be available');
             console.warn('   Streaming endpoints will work with external auth (e.g., AWS Cognito)');
+            console.warn('   Error details:', dbError);
 
             // Create mock services for streaming-only mode
             const mockDbService = {

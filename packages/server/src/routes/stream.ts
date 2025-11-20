@@ -14,6 +14,7 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
                 messages,
                 conversationId,
                 messageId: providedMessageId,
+                model,
             } = request.body as ChatCompletionRequest & { conversationId?: string; messageId?: string };
 
             // Get authenticated user
@@ -177,7 +178,7 @@ export function registerStreamRoutes(fastify: FastifyInstance) {
                 );
 
                 // OpenAI 스트리밍 호출
-                const stream = await openaiService.createStreamingChatCompletion(openaiMessages);
+                const stream = await openaiService.createStreamingChatCompletion(openaiMessages, model);
 
                 // OpenAI 스트림 처리
                 for await (const chunk of stream) {
